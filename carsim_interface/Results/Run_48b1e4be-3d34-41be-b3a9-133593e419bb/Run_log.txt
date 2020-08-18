@@ -1,0 +1,3 @@
+
+The run stopped at T = 0 because there was a problem opening PARSFILE "Results\Run_48b1e4be-3d34-41be-b3a9-133593e419bb\Run_all.par".
+

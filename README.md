@@ -13,7 +13,10 @@
 `single_track_data_gen_cartesian.m` will run the bicycle model with the current states and controls and plot the results. 
 
 ## Controller
-`mpc_testing.m` contains matlab implementations of an LTI and LTV MPC and tests them 
+`mpc_testing.m` contains matlab implementations of an LTI and LTV MPC and tests them using the bicycle model.
+
+## Carsim
+Carsim integration coming soon
 
 ## References
 `acc17b.pdf` is the reference paper for the Kalman filter code. The code closely follows `Algorithm I` in the paper. `model.pdf` provides relevant equations for the bicycle model for reference. `falcone.pdf` is the reference paper for the LTI and LTV MPC implementations (specifically Section III).

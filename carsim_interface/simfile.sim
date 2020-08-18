@@ -1,0 +1,28 @@
+SIMFILE
+
+SET_MACRO $(ROOT_FILE_NAME)$ Run_96268d5b-cbb4-461f-af8a-13a89557e764
+SET_MACRO $(OUTPUT_PATH)$ C:\Users\Public\Documents\CarSim2017.1_Data\Results
+SET_MACRO $(WORK_DIR)$ C:\Users\Public\Documents\CarSim2017.1_Data\
+SET_MACRO $(OUTPUT_FILE_PREFIX)$ $(WORK_DIR)$Results\Run_96268d5b-cbb4-461f-af8a-13a89557e764\LastRun
+
+FILEBASE $(OUTPUT_FILE_PREFIX)$
+INPUT $(WORK_DIR)$Results\$(ROOT_FILE_NAME)$\Run_all.par
+INPUTARCHIVE $(OUTPUT_FILE_PREFIX)$_all.par
+ECHO $(OUTPUT_FILE_PREFIX)$_echo.par
+FINAL $(OUTPUT_FILE_PREFIX)$_end.par
+LOGFILE $(OUTPUT_FILE_PREFIX)$_log.txt
+ERDFILE $(OUTPUT_FILE_PREFIX)$.erd
+PROGDIR C:\Program Files (x86)\CarSim2017.1_Prog\
+DATADIR C:\Users\Public\Documents\CarSim2017.1_Data\
+GUI_REFRESH_V CarSim_RefreshEvent_35312
+RESOURCEDIR C:\Program Files (x86)\CarSim2017.1_Prog\\Resources\
+PRODUCT_ID CarSim
+PRODUCT_VER 2017.1
+ANIFILE C:\Users\Public\Documents\CarSim2017.1_Data\runs\animator.par
+VEHICLE_CODE i_i
+EXT_MODEL_STEP 0.00100000
+PORTS_IMP 1,10
+PORTS_EXP 1,6
+
+DLLFILE C:\Program Files (x86)\CarSim2017.1_Prog\Programs\Solvers\Default64\i_i.dll
+END
