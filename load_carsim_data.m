@@ -16,29 +16,29 @@ wRR=interp1(t,AVy_R2,time,mthd);
 yaw=interp1(t,Yaw,time,mthd);
 X=interp1(t,Xcg_SM,time,mthd);
 Y=interp1(t,Ycg_SM,time,mthd);
-steering = min(abs(Steer_L1), abs(Steer_R1)) .* sign(StrSWr_1);
-steering=interp1(t,Steer_SW,time,mthd);
-steeringL=interp1(t,(Steer_L1),time,mthd);
-steeringR=interp1(t,Steer_R1,time,mthd);
-ffx=interp1(t,Fx_A1,time,mthd);
-frx=interp1(t,Fx_A2,time,mthd);
-frfx=interp1(t,Fx_R1,time,mthd);
-frrx=interp1(t,Fx_R2,time,mthd);
-ffy=interp1(t,Fy_A1,time,mthd);
-fry=interp1(t,Fy_A2,time,mthd);
-frfy=interp1(t,Fy_R1,time,mthd);
-frry=interp1(t,Fy_R2,time,mthd);
-beta=interp1(t,Beta,time,mthd);
-alphalf=interp1(t,Alpha_L1,t,mthd);
-alphalr=interp1(t,Alpha_L2,t,mthd);
-alpharf=interp1(t,Alpha_R1,t,mthd);
-alpharr=interp1(t,Alpha_R2,t,mthd);
-FzF=interp1(t,Fz_A1,time,mthd);
-FzR=interp1(t,Fz_A2,time,mthd);
-muFx=interp1(t,(MuX_L1+MuX_R1),time,mthd);
-muRx=interp1(t,(MuX_L2+MuX_R2),time,mthd);
-muFy=interp1(t,(MuY_L1+MuY_R1),time,mthd);
-muRy=interp1(t,(MuY_L2+MuY_R2),time,mthd);
+% steering = min(abs(Steer_L1), abs(Steer_R1)) .* sign(StrSWr_1);
+% steering=interp1(t,Steer_SW,time,mthd);
+% steeringL=interp1(t,(Steer_L1),time,mthd);
+% steeringR=interp1(t,Steer_R1,time,mthd);
+% ffx=interp1(t,Fx_A1,time,mthd);
+% frx=interp1(t,Fx_A2,time,mthd);
+% frfx=interp1(t,Fx_R1,time,mthd);
+% frrx=interp1(t,Fx_R2,time,mthd);
+% ffy=interp1(t,Fy_A1,time,mthd);
+% fry=interp1(t,Fy_A2,time,mthd);
+% frfy=interp1(t,Fy_R1,time,mthd);
+% frry=interp1(t,Fy_R2,time,mthd);
+% beta=interp1(t,Beta,time,mthd);
+% alphalf=interp1(t,Alpha_L1,t,mthd);
+% alphalr=interp1(t,Alpha_L2,t,mthd);
+% alpharf=interp1(t,Alpha_R1,t,mthd);
+% alpharr=interp1(t,Alpha_R2,t,mthd);
+% FzF=interp1(t,Fz_A1,time,mthd);
+% FzR=interp1(t,Fz_A2,time,mthd);
+% muFx=interp1(t,(MuX_L1+MuX_R1),time,mthd);
+% muRx=interp1(t,(MuX_L2+MuX_R2),time,mthd);
+% muFy=interp1(t,(MuY_L1+MuY_R1),time,mthd);
+% muRy=interp1(t,(MuY_L2+MuY_R2),time,mthd);
 
 vx = vx/60/60*1000;
 vy = vy/60/60*1000;
@@ -50,19 +50,44 @@ wLR = wLR/60*2*pi;
 wRF = wRF/60*2*pi;
 wRR = wRR/60*2*pi;
 yaw = yaw/180*pi;
-steering = steering/180*pi;
-steeringL = steeringL/180*pi;
-steeringR = steeringR/180*pi;
-beta = beta/180*pi;
-alphalf=alphalf/180*pi;
-alphalr=alphalr/180*pi;
-alpharf=alpharf/180*pi;
-alpharr=alpharr/180*pi;
+% steering = steering/180*pi;
+% steeringL = steeringL/180*pi;
+% steeringR = steeringR/180*pi;
+% beta = beta/180*pi;
+% alphalf=alphalf/180*pi;
+% alphalr=alphalr/180*pi;
+% alpharf=alpharf/180*pi;
+% alpharr=alpharr/180*pi;
 
-carsim_states = [vx; vy; wz; wF; wR; yaw+states(6,1); X; Y];% wLF; wLR; wRF; wRR];
+carsim_states = [vx; vy; wz; wF; wR; yaw; X; Y];% wLF; wLR; wRF; wRR];
 % states = [vx; vy; wz; yaw];
 % inputs = [steering; steeringL; steeringR; FzF; FzR; ffx; ffy; frx; fry];
 
+%%
+N = 2000;
+Nf = 2000;
+% subset_states = states(:,N:176000);
+% subset_inputs = inputs(:,N:10:end-Nf);
+% subset_ff = ff(:,N/10:end-Nf/10);
+state = carsim_states(:,1);
+% carsim_states(7:8,N) = states(7:8,N);
+% time = (1:length(subset_states))/100;%1:20000;
+% analytic_states = zeros(length(state), length(time));
+% forces = zeros(8, length(time));
+% ff_training_data = zeros(5, length(time));
+
+figure;
+for ii = 1:length(state)
+    subplot(length(state)/2, 2, ii);
+    hold on
+%     plot(time(1:end-Nf), subset_states(ii, 1:end-Nf))
+%     if ii < 7
+%     else
+%         plot(time, analytic_states(ii, :))
+%     end
+    plot(time(1:end-Nf), carsim_states(ii, 1:end-Nf))
+
+end
 %%
 tire_B = 10;
 tire_C = 2.0;

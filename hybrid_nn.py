@@ -146,7 +146,7 @@ def prepare_data():
 
 def train_model():
     dyn_model = Net()
-    # dyn_model.load_state_dict(torch.load('hybrid_net_ar2.pth'))
+    dyn_model.load_state_dict(torch.load('hybrid_net_ar2.pth'))
     criterion = torch.nn.L1Loss()
     optimizer = torch.optim.Adamax(dyn_model.parameters(), lr=1e-2)
     training_inputs, training_outputs, validation_inputs, validation_outputs = prepare_data()
@@ -157,13 +157,13 @@ def train_model():
         output = dyn_model(input_tensor)
         wz_dot = (output[:,0] * 0.34 - output[:,1] * 0.23) / 1.124
         wz = torch.cumsum(wz_dot * 0.01, dim=0)
-        vy_dot = ((output[:, 0] + output[:, 1]) / 21.7562 - input_tensor[:,1] * input_tensor[:,3])
-        vy = torch.cumsum(vy_dot * 0.01, dim=0)
-        output2 = torch.cat((output[:, 0:2], 100*wz.reshape(-1,1), 100*vy.reshape(-1,1)), dim=1)
-        output_tensor2 = torch.cat((output_tensor[:,[0,1]], 100*input_tensor[:, 2:4]), dim=1)
-        output2 = torch.cat((wz.reshape(-1, 1), vy.reshape(-1, 1)), dim=1)
-        output_tensor2 = torch.cat((input_tensor[:, 3:4], input_tensor[:, 2:3]), dim=1)
-        loss = criterion(output2, output_tensor2)
+        # vy_dot = ((output[:, 0] + output[:, 1]) / 21.7562 - input_tensor[:,1] * input_tensor[:,3])
+        # vy = torch.cumsum(vy_dot * 0.01, dim=0)
+        # output2 = torch.cat((output[:, 0:2], 100*wz.reshape(-1,1), 100*vy.reshape(-1,1)), dim=1)
+        # output_tensor2 = torch.cat((output_tensor[:,[0,1]], 100*input_tensor[:, 2:4]), dim=1)
+        # output2 = torch.cat((wz.reshape(-1, 1), vy.reshape(-1, 1)), dim=1)
+        # output_tensor2 = torch.cat((input_tensor[:, 3:4], input_tensor[:, 2:3]), dim=1)
+        loss = criterion(wz.reshape(-1, 1), input_tensor[:, 3:4])
         loss.backward()
         optimizer.step()
         if ii % 100 == 0:

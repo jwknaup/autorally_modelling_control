@@ -1,4 +1,4 @@
-/* Produced by CVXGEN, 2019-07-09 09:48:16 -0400.  */
+/* Produced by CVXGEN, 2020-08-26 00:58:54 -0400.  */
 /* CVXGEN is Copyright (C) 2006-2017 Jacob Mattingley, jem@cvxgen.com. */
 /* The code in this file is Copyright (C) 2006-2017 Jacob Mattingley. */
 /* CVXGEN, or solvers produced by CVXGEN, cannot be used for commercial */
@@ -1343,7 +1343,8 @@ void load_default_data(void) {
   params.d_12[5] = 0.3224630617864217;
   params.d_12[6] = 1.6689965362726689;
   params.d_12[7] = -1.5811432069118774;
-  params.half_road_width[0] = 1.9768976663891284;
-  params.umax[0] = 1.2831898291450736;
-  params.umax[1] = 1.3755054140820706;
+  params.umax[0] = 1.9768976663891284;
+  params.umax[1] = 1.2831898291450736;
+  params.S[0] = 1.3755054140820706;
+  params.S[1] = 0.031910598837773696;
 }

@@ -1,7 +1,7 @@
 %% Load data
 % bag = rosbag('C:\Users\jknaup3\Downloads\beta_autorally7_2019-07-19-10-43-36.bag');
 % bag = rosbag('C:\Users\jknaup3\Downloads\beta_autorally7_2019-07-24-09-49-15.bag');
-bag = rosbag('C:\Users\jknaup3\Downloads\beta_autorally4_2018-03-29-15-34-10_split0.bag');
+bag = rosbag('C:\Users\jknaup3\Downloads\beta_localhost_2020-10-01-16-19-22_0.bag');
 % bag = rosbag('C:\Users\jknaup3\Downloads\beta_autorally4_2018-03-29-11-57-43.bag');
 %%
 % chassis_states = select(bag, 'Topic', '/chassisState');
@@ -10,13 +10,14 @@ bag = rosbag('C:\Users\jknaup3\Downloads\beta_autorally4_2018-03-29-15-34-10_spl
 % [wheel_odom_ts, wheel_odom_cols] = timeseries(wheel_odoms);
 wheel_speeds = select(bag, 'Topic', '/wheelSpeeds');
 [wheel_speed_ts, wheel_speed_cols] = timeseries(wheel_speeds);
-poses = select(bag, 'Topic', '/pose_estimate');
-[pose_ts, pose_cols] = timeseries(poses);
-imu = select(bag, 'Topic', 'imu/imu');
-[imu_ts, imu_cols] = timeseries(imu);
+% poses = select(bag, 'Topic', '/pose_estimate');
+% [pose_ts, pose_cols] = timeseries(poses);
+% imu = select(bag, 'Topic', 'imu/imu');
+% [imu_ts, imu_cols] = timeseries(imu);
 
 % CA = select(bag, 'Topic', '/MAP_CA/mapCA');
 % [CA_ts, CA_cols] = timeseries(CA);
+
 chassis = select(bag, 'Topic', '/chassisState');
 [chassis_ts, chassis_cols] = timeseries(chassis);
 %% Map CA
@@ -63,7 +64,7 @@ curvature = CA_ts.Data(:,9);
 % plot(CA_ts.Data(:,11), CA_ts.Data(:,12), '.')
 
 %% Control
-steering = -pi / 180 * chassis_ts.Data(:,1);
+steering = chassis_ts.Data(:,1);
 throttle = chassis_ts.Data(:,2);
 % time_chassis = chassis_ts.Time - CA_ts.Time(1);
 % figure;
@@ -78,10 +79,12 @@ a_y = imu_ts.Data(:, 12);
 a_z = imu_ts.Data(:, 13);
 % time_imu = imu_ts.Time - CA_ts.Time(1);
 
-%% others
+%% wheel speed
 wheel_radius = 0.095;
 wF = (wheel_speed_ts.Data(:,1) + wheel_speed_ts.Data(:,2)) / 2 / wheel_radius;
 wR = (wheel_speed_ts.Data(:,3) + wheel_speed_ts.Data(:,4)) / 2 / wheel_radius;
+wR=interp1(time_wheel_speed,wR,time_chassis,mthd);
+%% others
 X = pose_ts.Data(:, 4);
 Y = pose_ts.Data(:, 5);
 wz = pose_ts.Data(:,16);
@@ -95,7 +98,7 @@ Yaw = unwrap(YawAngle) + 2*pi;
 vx = pose_ts.Data(:,11).*cos(Yaw)+pose_ts.Data(:,12).*sin(Yaw);
 vy = pose_ts.Data(:,11).*-sin(YawAngle)+pose_ts.Data(:,12).*cos(YawAngle);
 time_pose = pose_ts.Time - pose_ts.Time(1);
-time_ca = time_pose;
+% time_ca = time_pose;
 time_imu = imu_ts.Time - pose_ts.Time(1);
 time_wheel_speed = wheel_speed_ts.Time - pose_ts.Time(1);
 time_chassis = chassis_ts.Time - pose_ts.Time(1);
@@ -104,22 +107,22 @@ time_chassis = chassis_ts.Time - pose_ts.Time(1);
 tf=floor(max([time_ca(end), time_chassis(end), time_wheel_speed(end), time_imu(end)]));
 ti = floor(min([time_ca(1), time_chassis(1), time_wheel_speed(1), time_imu(1)]));
 tf = tf-ti;
-dt=0.001;
+dt=0.1;
 t3=( 0:dt:tf )';
 lth=length(t3);
 mthd='pchip';
 
-vx=interp1(time_ca,vx,t3,mthd);
-vy=interp1(time_ca,vy,t3,mthd);
-wz=interp1(time_ca,wz,t3,mthd);
+vx=interp1(time_pose,vx,t3,mthd);
+vy=interp1(time_pose,vy,t3,mthd);
+wz=interp1(time_pose,wz,t3,mthd);
 wF=interp1(time_wheel_speed,wF,t3,mthd);
 wR=interp1(time_wheel_speed,wR,t3,mthd);
 % epsi=interp1(time_ca,epsi,t3,mthd);
 % ey=interp1(time_ca,ey,t3,mthd);
 % s=interp1(time_ca,s,t3,mthd);
-X=interp1(time_ca,X,t3,mthd);
-Y=interp1(time_ca,Y,t3,mthd);
-Yaw=interp1(time_ca,Yaw,t3,mthd);
+X=interp1(time_pose,X,t3,mthd);
+Y=interp1(time_pose,Y,t3,mthd);
+Yaw=interp1(time_pose,Yaw,t3,mthd);
 
 % curvature=interp1(time_ca,curvature,t3,'nearest');
 % curvature(isnan(curvature)) = 0;
@@ -133,14 +136,14 @@ a_z=interp1(time_imu,a_z,t3,mthd);
 
 % steering=medfilt1(steering,200);
 % throttle=medfilt1(throttle,500);
-wz=medfilt1(wz, 500);
-wF=medfilt1(wF,500);
-wR=medfilt1(wR,500);
-vx=medfilt1(vx,500);
-vy=medfilt1(vy,500);
-a_x=medfilt1(a_x,500);
-a_y=medfilt1(a_y,200);
-a_z=medfilt1(a_z,1000);
+% wz=medfilt1(wz, 100);
+% wF=medfilt1(wF,100);
+% wR=medfilt1(wR,100);
+% vx=medfilt1(vx,100);
+% vy=medfilt1(vy,100);
+% a_x=medfilt1(a_x,500);
+% a_y=medfilt1(a_y,200);
+% a_z=medfilt1(a_z,1000);
 
 %%
 N=1;
@@ -174,6 +177,41 @@ plot(t3, steering);
 hold on
 plot(t3, throttle);
 hold on
+
+%%
+N=1;
+Nf = 100000;
+figure;
+subplot(4,2,1);
+plot(t3(N:end-Nf), vx(N:end-Nf));
+legend('True vx','Simulated vx');
+subplot(4,2,2);
+plot(t3(N:end-Nf), vy(N:end-Nf));
+legend('True vy','Simulated vy');
+subplot(4,2,3);
+plot(t3(N:end-Nf), wz(N:end-Nf));
+legend('True wz','Simulated wz');
+% subplot(4,2,4);
+% plot(t3(N:end-1000), wF(N:end-1000));
+% legend('True wF','Simulated wF');
+% subplot(4,2,5);
+% plot(t3(N:end-1000), wR(N:end-1000));
+% legend('True wR','Simulated wR');
+subplot(4,2,6);
+plot(t3(N:end-Nf), epsi(N:end-Nf));
+legend('True Yaw','Simulated Yaw');
+subplot(4,2,7);
+plot(t3(N:end-Nf), ey(N:end-Nf));
+legend('True X','Simulated X');
+subplot(4,2,8);
+plot(t3(N:end-Nf), s(N:end-Nf));
+legend('True Y','Simulated Y');
+subplot(4,2,4);
+plot(t3(N:end-Nf), steering(N:end-Nf));
+legend('steering');
+subplot(4,2,5);
+plot(t3(N:end-Nf), throttle(N:end-Nf));
+legend('throttle');
 
 %%
 states = [vx'; vy'; wz'; wF'; wR'; Yaw'; X'; Y'];

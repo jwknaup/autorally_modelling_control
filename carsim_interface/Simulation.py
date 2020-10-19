@@ -74,24 +74,29 @@ class VehicleSimulation:
         return error_occurred
 
     def ReadConfiguration(self, path_to_sim_file):
+        # print('getting ptr')
         path_to_sim_file_ptr = self.get_char_pointer(path_to_sim_file)
+        # print(path_to_sim_file_ptr)
         if path_to_sim_file_ptr is not None:
             ref_n_import = ctypes.c_int32()
             ref_n_export = ctypes.c_int32()
             ref_t_start = ctypes.c_double()
             ref_t_stop = ctypes.c_double()
             ref_t_step = ctypes.c_double()
+            # print('reading config')
             self.dll_handle.vs_read_configuration(path_to_sim_file_ptr,
                                                   ctypes.byref(ref_n_import),
                                                   ctypes.byref(ref_n_export),
                                                   ctypes.byref(ref_t_start),
                                                   ctypes.byref(ref_t_stop),
                                                   ctypes.byref(ref_t_step))
+            # print('not here')
             configuration = {'n_import': ref_n_import.value,
                              'n_export': ref_n_export.value,
                              't_start': ref_t_start.value,
                              't_stop': ref_t_stop.value,
                              't_step': ref_t_step.value}
+            # print(configuration)
             return configuration
 
     def CopyExportVars(self, n_export):

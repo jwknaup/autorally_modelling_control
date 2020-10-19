@@ -1,6 +1,6 @@
 function [ para_opt, Y, Xa, Y_opt ] = Single_Track_Cartesian_AJUKF (states, inputs, dt)
 
-starti=1;
+starti=2000;
 window_seconds=70;
 window=window_seconds/dt;
 vxj=states(1, starti:window+starti )';
@@ -333,7 +333,7 @@ function next_state = predict_next_state(states, control, params, dt)
 %     m_Vehicle_IwF = params(4, :);
 %     m_Vehicle_IwR = params(5, :);
     m_Vehicle_rF = 0.095;
-    m_Vehicle_rR = 0.095;
+    m_Vehicle_rR = 0.090;
 %     m_Vehicle_mu1 = params(10, :);
 %     m_Vehicle_mu2 = m_Vehicle_mu1;%params(11, :);
     m_Vehicle_h = params(5, :);    
@@ -360,7 +360,7 @@ function next_state = predict_next_state(states, control, params, dt)
     Xk = states(6, :);
     Yk = states(7, :);
 
-    deltak = 18.7861 .* control(1)+0.0109;
+    deltak = 15.7861 .* control(1)+0.0109;
 %     Tk = m_Vehicle_kThrottle * Tj(k);
     
 %     if (vxk < min_velo)

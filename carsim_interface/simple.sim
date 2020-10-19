@@ -12,17 +12,17 @@ ECHO $(OUTPUT_FILE_PREFIX)$_echo.par
 FINAL $(OUTPUT_FILE_PREFIX)$_end.par
 LOGFILE $(OUTPUT_FILE_PREFIX)$_log.txt
 ERDFILE $(OUTPUT_FILE_PREFIX)$.erd
-PROGDIR C:\Program Files (x86)\CarSim2017.1_Prog\
+PROGDIR C:\Program Files (x86)\CarSim2020.1_Prog\
 DATADIR C:\Users\Public\Documents\CarSim2017.1_Data\
-GUI_REFRESH_V CarSim_RefreshEvent_35312
-RESOURCEDIR C:\Program Files (x86)\CarSim2017.1_Prog\\Resources\
+GUI_REFRESH_V CarSim_RefreshEvent_19464
+RESOURCEDIR C:\Program Files (x86)\CarSim2020.1_Prog\\Resources\
 PRODUCT_ID CarSim
-PRODUCT_VER 2017.1
+PRODUCT_VER 2020.1
 ANIFILE C:\Users\Public\Documents\CarSim2017.1_Data\runs\animator.par
 VEHICLE_CODE i_i
 EXT_MODEL_STEP 0.00100000
-PORTS_IMP 1,10
-PORTS_EXP 1,6
+PORTS_IMP 0
+PORTS_EXP 0
 
-DLLFILE C:\Program Files (x86)\CarSim2017.1_Prog\Programs\Solvers\Default64\i_i.dll
+DLLFILE C:\Program Files (x86)\CarSim2020.1_Prog\Programs\solvers\carsim_64.dll
 END

@@ -16,6 +16,7 @@ if version_info >= (2, 6, 0):
         fp = None
         try:
             fp, pathname, description = imp.find_module('_pyvs', [dirname(__file__)])
+            print(fp, pathname, description)
         except ImportError:
             import _pyvs
             return _pyvs

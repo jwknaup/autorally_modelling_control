@@ -1,4 +1,4 @@
-/* Produced by CVXGEN, 2019-07-09 09:48:16 -0400.  */
+/* Produced by CVXGEN, 2020-08-26 00:58:54 -0400.  */
 /* CVXGEN is Copyright (C) 2006-2017 Jacob Mattingley, jem@cvxgen.com. */
 /* The code in this file is Copyright (C) 2006-2017 Jacob Mattingley. */
 /* CVXGEN, or solvers produced by CVXGEN, cannot be used for commercial */
@@ -72,8 +72,8 @@ typedef struct Params_t {
   double A_12[64];
   double B_12[16];
   double d_12[8];
-  double half_road_width[1];
   double umax[2];
+  double S[2];
   double *x[1];
   double *A[13];
   double *B[13];
@@ -119,29 +119,41 @@ typedef struct Vars_t {
   double *t_11; /* 2 rows. */
   double *t_12; /* 2 rows. */
   double *t_13; /* 2 rows. */
+  double *t_14; /* 2 rows. */
+  double *t_15; /* 2 rows. */
+  double *t_16; /* 2 rows. */
+  double *t_17; /* 2 rows. */
+  double *t_18; /* 2 rows. */
+  double *t_19; /* 2 rows. */
+  double *t_20; /* 2 rows. */
+  double *t_21; /* 2 rows. */
+  double *t_22; /* 2 rows. */
+  double *t_23; /* 2 rows. */
+  double *t_24; /* 2 rows. */
+  double *t_25; /* 2 rows. */
   double *u[13];
   double *x[14];
 } Vars;
 typedef struct Workspace_t {
-  double h[104];
-  double s_inv[104];
-  double s_inv_z[104];
+  double h[150];
+  double s_inv[150];
+  double s_inv_z[150];
   double b[104];
-  double q[156];
-  double rhs[468];
-  double x[468];
+  double q[180];
+  double rhs[584];
+  double x[584];
   double *s;
   double *z;
   double *y;
-  double lhs_aff[468];
-  double lhs_cc[468];
-  double buffer[468];
-  double buffer2[468];
-  double KKT[2055];
-  double L[2431];
-  double d[468];
-  double v[468];
-  double d_inv[468];
+  double lhs_aff[584];
+  double lhs_cc[584];
+  double buffer[584];
+  double buffer2[584];
+  double KKT[2335];
+  double L[3121];
+  double d[584];
+  double v[584];
+  double d_inv[584];
   double gap;
   double optval;
   double ineq_resid_squared;
@@ -173,14 +185,6 @@ extern Vars vars;
 extern Params params;
 extern Workspace work;
 extern Settings settings;
-/* Function definitions in ldl.c: */
-void ldl_solve(double *target, double *var);
-void ldl_factor(void);
-double check_factorization(void);
-void matrix_multiply(double *result, double *source);
-double check_residual(double *target, double *multiplicand);
-void fill_KKT(void);
-
 /* Function definitions in matrix_support.c: */
 void multbymA(double *lhs, double *rhs);
 void multbymAT(double *lhs, double *rhs);
@@ -191,6 +195,14 @@ void fillq(void);
 void fillh(void);
 void fillb(void);
 void pre_ops(void);
+
+/* Function definitions in ldl.c: */
+void ldl_solve(double *target, double *var);
+void ldl_factor(void);
+double check_factorization(void);
+void matrix_multiply(double *result, double *source);
+double check_residual(double *target, double *multiplicand);
+void fill_KKT(void);
 
 /* Function definitions in solver.c: */
 double eval_gap(void);

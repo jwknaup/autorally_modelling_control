@@ -1,4 +1,4 @@
-/* Produced by CVXGEN, 2019-07-09 09:48:03 -0400.  */
+/* Produced by CVXGEN, 2020-08-26 00:58:49 -0400.  */
 /* CVXGEN is Copyright (C) 2006-2017 Jacob Mattingley, jem@cvxgen.com. */
 /* The code in this file is Copyright (C) 2006-2017 Jacob Mattingley. */
 /* CVXGEN, or solvers produced by CVXGEN, cannot be used for commercial */
@@ -1055,6 +1055,35 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
     }
   }
   this_var_errors = 0;
+  xm = mxGetField(prhs[0], 0, "S");
+  if (xm == NULL) {
+    printf("could not find params.S.\n");
+  } else {
+    if (!((mxGetM(xm) == 2) && (mxGetN(xm) == 1))) {
+      printf("S must be size (2,1), not (%d,%d).\n", mxGetM(xm), mxGetN(xm));
+      this_var_errors++;
+    }
+    if (mxIsComplex(xm)) {
+      printf("parameter S must be real.\n");
+      this_var_errors++;
+    }
+    if (!mxIsClass(xm, "double")) {
+      printf("parameter S must be a full matrix of doubles.\n");
+      this_var_errors++;
+    }
+    if (mxIsSparse(xm)) {
+      printf("parameter S must be a full matrix.\n");
+      this_var_errors++;
+    }
+    if (this_var_errors == 0) {
+      dest = params.S;
+      src = mxGetPr(xm);
+      for (i = 0; i < 2; i++)
+        *dest++ = *src++;
+      valid_vars++;
+    }
+  }
+  this_var_errors = 0;
   xm = mxGetField(prhs[0], 0, "d_0");
   if (xm == NULL) {
     printf("could not find params.d_0.\n");
@@ -1504,35 +1533,6 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
     }
   }
   this_var_errors = 0;
-  xm = mxGetField(prhs[0], 0, "half_road_width");
-  if (xm == NULL) {
-    printf("could not find params.half_road_width.\n");
-  } else {
-    if (!((mxGetM(xm) == 1) && (mxGetN(xm) == 1))) {
-      printf("half_road_width must be size (1,1), not (%d,%d).\n", mxGetM(xm), mxGetN(xm));
-      this_var_errors++;
-    }
-    if (mxIsComplex(xm)) {
-      printf("parameter half_road_width must be real.\n");
-      this_var_errors++;
-    }
-    if (!mxIsClass(xm, "double")) {
-      printf("parameter half_road_width must be a full matrix of doubles.\n");
-      this_var_errors++;
-    }
-    if (mxIsSparse(xm)) {
-      printf("parameter half_road_width must be a full matrix.\n");
-      this_var_errors++;
-    }
-    if (this_var_errors == 0) {
-      dest = params.half_road_width;
-      src = mxGetPr(xm);
-      for (i = 0; i < 1; i++)
-        *dest++ = *src++;
-      valid_vars++;
-    }
-  }
-  this_var_errors = 0;
   xm = mxGetField(prhs[0], 0, "target");
   if (xm == NULL) {
     printf("could not find params.target.\n");
@@ -1713,10 +1713,10 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
       printf("  params.B_12[%d] = %.6g;\n", i, params.B_12[i]);
     for (i = 0; i < 8; i++)
       printf("  params.d_12[%d] = %.6g;\n", i, params.d_12[i]);
-    for (i = 0; i < 1; i++)
-      printf("  params.half_road_width[%d] = %.6g;\n", i, params.half_road_width[i]);
     for (i = 0; i < 2; i++)
       printf("  params.umax[%d] = %.6g;\n", i, params.umax[i]);
+    for (i = 0; i < 2; i++)
+      printf("  params.S[%d] = %.6g;\n", i, params.S[i]);
   }
   /* Perform the actual solve in here. */
   steps = solve();

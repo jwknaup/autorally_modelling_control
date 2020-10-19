@@ -1,5 +1,5 @@
 N = 2000;
-Nf = 2000;
+Nf = 100000;
 subset_states = states(:,N:10:end-Nf);
 subset_inputs = inputs(:,N:10:end-Nf);
 % subset_ff = ff(:,N/10:end-Nf/10);
@@ -18,7 +18,7 @@ for ii = 1:length(time)
 % state(2) = states(2,ii);
 % state(3) = state(3) - 0.0279;
 % state(4) = states(4,ii);
-state(5) = subset_states(5,ii);
+% state(5) = subset_states(5,ii);
 % state(1:5) = carsim_states(1:5,ii);
 % state(6) = wzs(ii,4);
 analytic_states(:,ii) = state;
@@ -48,7 +48,7 @@ for ii = 1:length(state)
 %     else
         plot(time, analytic_states(ii, :))
 %     end
-%         plot(time(N:end-Nf), carsim_states(ii, N:end-Nf))
+%     plot(time(N:end-Nf), carsim_states(ii, N:end-Nf))
 
 end
 % figure;
@@ -76,20 +76,20 @@ m_Vehicle_lR = lFR-m_Vehicle_lF;%0.57
 m_Vehicle_IwF = 0.05;%8.0;%4.02;
 m_Vehicle_IwR = 0.5;%3.73;
 m_Vehicle_rF = 0.095;%0.325;%0.095;
-m_Vehicle_rR = 0.09;%0.325;%0.090;
+m_Vehicle_rR = 0.095;%0.325;%0.090;
 m_Vehicle_mu1 = 0.75;
 m_Vehicle_mu2 = 0.90;
 m_Vehicle_h = 0.12;%0.54;%.2;%0.2;    
 m_g = 9.80665;
 
-m_Vehicle_kSteering = 18.7861;%23.0811;%34
-m_Vehicle_cSteering = 0.0109;
-m_Vehicle_kThrottle = 165.0922;
-m_Vehicle_kTorque = 0.07577;
+m_Vehicle_kSteering = 15*pi/-180;%18.7861
+m_Vehicle_cSteering = 0; %0.0109
+m_Vehicle_kThrottle = 139.2661;%165.0922;
+m_Vehicle_kTorque = 0.8;
 
-tire_B = 4;%1.5;
-tire_C = 1;%1.5;
-tire_D = 1.0;
+tire_B = 2;%1.5;
+tire_C = 0.5;%1.5;
+tire_D = 0.5;
 tire_a = 1;%0.75;
 tire_E = 0.97;
 tire_Sh = -0.0;
@@ -116,7 +116,7 @@ Y = state(8, 1);
 delta = m_Vehicle_kSteering * input(1, 1) + m_Vehicle_cSteering;
 % delta = (input(2) + input(3))/2;
 % delta = input(1);
-% T = m_Vehicle_kThrottle * input(2, 1);
+T = m_Vehicle_kThrottle * input(2, 1);
 
 min_velo = 0.1;
 deltaT = 0.01;
@@ -235,7 +235,7 @@ next_state(3, 1) = wz + deltaT * ((fFy*cos(delta) + fFx*sin(delta)) * m_Vehicle_
 % next_state(3, 1) = wz + deltaT * wz_dot;
 
 next_state(4, 1) = wF - deltaT * m_Vehicle_rF / m_Vehicle_IwF * fFx;
-% next_state(5, 1) = wR + deltaT * (m_Vehicle_kTorque * (T-wR) - m_Vehicle_rR * fRx) / m_Vehicle_IwR;
+next_state(5, 1) = wR + deltaT * (m_Vehicle_kTorque * (T-wR) - m_Vehicle_rR * fRx) / m_Vehicle_IwR;
 next_state(6, 1) = Yaw + deltaT * (wz);
 next_state(7, 1) = X + deltaT * dot_X;
 next_state(8, 1) = Y + deltaT * dot_Y;

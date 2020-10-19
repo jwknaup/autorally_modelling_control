@@ -19,32 +19,6 @@
 %     x_11 == A_10*x_10 + B_10*u_10 + d_10
 %     x_12 == A_11*x_11 + B_11*u_11 + d_11
 %     x_13 == A_12*x_12 + B_12*u_12 + d_12
-%     -half_road_width <= x_1(7)
-%     -half_road_width <= x_2(7)
-%     -half_road_width <= x_3(7)
-%     -half_road_width <= x_4(7)
-%     -half_road_width <= x_5(7)
-%     -half_road_width <= x_6(7)
-%     -half_road_width <= x_7(7)
-%     -half_road_width <= x_8(7)
-%     -half_road_width <= x_9(7)
-%     -half_road_width <= x_10(7)
-%     -half_road_width <= x_11(7)
-%     -half_road_width <= x_12(7)
-%     -half_road_width <= x_13(7)
-%     x_1(7) <= half_road_width
-%     x_2(7) <= half_road_width
-%     x_3(7) <= half_road_width
-%     x_4(7) <= half_road_width
-%     x_5(7) <= half_road_width
-%     x_6(7) <= half_road_width
-%     x_7(7) <= half_road_width
-%     x_8(7) <= half_road_width
-%     x_9(7) <= half_road_width
-%     x_10(7) <= half_road_width
-%     x_11(7) <= half_road_width
-%     x_12(7) <= half_road_width
-%     x_13(7) <= half_road_width
 %     abs(u_0) <= umax
 %     abs(u_1) <= umax
 %     abs(u_2) <= umax
@@ -58,6 +32,18 @@
 %     abs(u_10) <= umax
 %     abs(u_11) <= umax
 %     abs(u_12) <= umax
+%     abs(u_1 - u_0) <= S
+%     abs(u_2 - u_1) <= S
+%     abs(u_3 - u_2) <= S
+%     abs(u_4 - u_3) <= S
+%     abs(u_5 - u_4) <= S
+%     abs(u_6 - u_5) <= S
+%     abs(u_7 - u_6) <= S
+%     abs(u_8 - u_7) <= S
+%     abs(u_9 - u_8) <= S
+%     abs(u_10 - u_9) <= S
+%     abs(u_11 - u_10) <= S
+%     abs(u_12 - u_11) <= S
 %
 % with variables
 %      u_0   2 x 1
@@ -117,6 +103,7 @@
 %        Q   8 x 8    PSD
 %       QT   8 x 8    PSD
 %        R   2 x 2    PSD
+%        S   2 x 1    positive
 %      d_0   8 x 1
 %      d_1   8 x 1
 %      d_2   8 x 1
@@ -130,7 +117,6 @@
 %     d_10   8 x 1
 %     d_11   8 x 1
 %     d_12   8 x 1
-% half_road_width   1 x 1    positive
 %   target   8 x 1
 %     umax   2 x 1    positive
 %      x_0   8 x 1
@@ -144,7 +130,7 @@
 %
 % Specify params.A_0, ..., params.x_0, then run
 %   [vars, status] = csolve(params, settings)
-% Produced by CVXGEN, 2019-07-09 09:48:03 -0400.
+% Produced by CVXGEN, 2020-08-26 00:58:49 -0400.
 % CVXGEN is Copyright (C) 2006-2017 Jacob Mattingley, jem@cvxgen.com.
 % The code in this file is Copyright (C) 2006-2017 Jacob Mattingley.
 % CVXGEN, or solvers produced by CVXGEN, cannot be used for commercial

@@ -1,4 +1,4 @@
-# Produced by CVXGEN, 2019-07-09 09:48:03 -0400.
+# Produced by CVXGEN, 2020-08-26 00:58:49 -0400.
 # CVXGEN is Copyright (C) 2006-2017 Jacob Mattingley, jem@cvxgen.com.
 # The code in this file is Copyright (C) 2006-2017 Jacob Mattingley.
 # CVXGEN, or solvers produced by CVXGEN, cannot be used for commercial
@@ -22,9 +22,8 @@ parameters
   R (nu,nu) psd
   x[0] (nx) # Initial State
   target (nx) # Target state
-  xmin (nx)
-  half_road_width nonnegative
   umax (nu) nonnegative
+  S (nu) nonnegative  # slew rate limit.
 end
 
 variables
@@ -36,6 +35,6 @@ minimize
   sum[t=0..N](quad((x[t]-target), Q) + quad(u[t], R )) + quad((x[N+1]-target), QT)
 subject to
   x[t+1] == A[t]*x[t] + B[t]*u[t] + d[t], t=0..N
-  -half_road_width <= x[t][7] <= half_road_width, t=1..N+1
   abs(u[t]) <= umax, t=0..N
+  abs(u[t+1] - u[t]) <= S, t=0..N-1  # slew rate constraint.
 end
