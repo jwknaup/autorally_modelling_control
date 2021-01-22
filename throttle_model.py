@@ -4,8 +4,9 @@ import numpy as np
 import scipy.io
 import itertools
 import matplotlib.pyplot as plt
-import pandas
+# import pandas
 from numpy import sin, cos, tan, arctan as atan, sqrt, arctan2 as atan2, zeros, zeros_like, abs, pi
+import time
 
 
 class Net(torch.nn.Module):
@@ -367,7 +368,27 @@ def run_full_model():
     plt.show()
 
 
+def trace_model():
+    dyn_model = Net()
+    dyn_model.load_state_dict(torch.load('throttle_model1.pth'))
+    sample = torch.zeros((1,2))
+    sample[0,0] = 0.5
+    sample[0,1] = 50
+    traced_script_module = torch.jit.trace(dyn_model, sample)
+    # traced_script_module.save('traced_throttle_model.pt')
+    traced_script_module(sample)
+    t0 = time.time()
+    dyn_model = dyn_model.eval()
+    for ii in range(10):
+        sample = torch.randn((8*20*5, 2))
+        dyn_model(sample)
+        # torch.matmul(torch.randn((1,20)), torch.sigmoid(torch.matmul(torch.randn(20,2), sample)))
+    t1 = time.time()
+    print(t1-t0)
+
+
 if __name__ == '__main__':
     # train_model()
-    run_model()
+    # run_model()
     # run_full_model()
+    trace_model()

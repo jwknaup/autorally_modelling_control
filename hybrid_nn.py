@@ -25,17 +25,17 @@ class Net(torch.nn.Module):
 
         self.fi = torch.nn.Linear(2, 10)
         self.fo = torch.nn.Linear(10, 1)
-        # self.fi.weight.requires_grad = False
-        # self.fi.bias.requires_grad = False
-        # self.fo.weight.requires_grad = False
-        # self.fo.bias.requires_grad = False
+        self.fi.weight.requires_grad = False
+        self.fi.bias.requires_grad = False
+        self.fo.weight.requires_grad = False
+        self.fo.bias.requires_grad = False
 
         self.ri = torch.nn.Linear(2, 10)
         self.ro = torch.nn.Linear(10, 1)
-        # self.ri.weight.requires_grad = False
-        # self.ri.bias.requires_grad = False
-        # self.ro.weight.requires_grad = False
-        # self.ro.bias.requires_grad = False
+        self.ri.weight.requires_grad = False
+        self.ri.bias.requires_grad = False
+        self.ro.weight.requires_grad = False
+        self.ro.bias.requires_grad = False
 
     def forward(self, inputs):
         steering = inputs[:, 0:1]
