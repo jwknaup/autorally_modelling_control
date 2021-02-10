@@ -1,5 +1,6 @@
 import numpy as np
 from numpy import sin, cos, tan, arctan as atan, sqrt, arctan2 as atan2, zeros, zeros_like, abs, pi
+import scipy.io
 import matplotlib.pyplot as plt
 import torch
 import throttle_model
@@ -27,7 +28,7 @@ class Model:
             rho[truths] = map_params[ii][5]
         return rho
 
-    def update_dynamics(self, state, input, dt, nn=None, throttle_nn=None):
+    def update_dynamics(self, state, input, dt, nn=None, throttle_nn=None, cartesian=np.array([])):
         state = state.T
         input = input.T
         m_Vehicle_m = 21.7562#1270
@@ -114,8 +115,7 @@ class Model:
 
             ax = ((fFx * cos(delta) - fFy * sin(delta) + fRx) / m_Vehicle_m + vy * wz)
 
-            dot_X =cos(psi)*vx - sin(psi)*vy
-            dot_Y = sin(psi)*vx + cos(psi)*vy
+
 
             next_state = zeros_like(state)
             next_state[:, 0] = vx + deltaT * ((fFx * cos(delta) - fFy * sin(delta) + fRx) / m_Vehicle_m + vy * wz)
@@ -149,6 +149,11 @@ class Model:
             next_state[:, 6] = X + deltaT * (vx * sin(psi) + vy * cos(psi))
             next_state[:, 7] = Y + deltaT * (vx * cos(psi) - vy * sin(psi)) / (1 - rho * X)
 
+            if len(cartesian) > 0:
+                cartesian[0, :] += deltaT * wz
+                cartesian[1, :] += deltaT * (cos(cartesian[0, :]) * vx - sin(cartesian[0, :]) * vy)
+                cartesian[2, :] += deltaT * (sin(cartesian[0, :]) * vx + cos(cartesian[0, :]) * vy)
+
             t += deltaT
             vx = next_state[:, 0]
             vy = next_state[:, 1]
@@ -159,9 +164,10 @@ class Model:
             X = next_state[:, 6]
             Y = next_state[:, 7]
 
-        # print(t1-t0, t2-t1, t3-t2, t4-t3, t5-t4)
-
-        return next_state.T
+        if len(cartesian) > 0:
+            return next_state.T, cartesian
+        else:
+            return next_state.T
 
     def linearize_dynamics(self, states, controls):
         nx = 8
@@ -263,43 +269,59 @@ class Model:
 
 
 def add_labels():
-    plt.subplot(5, 2, 1)
+    plt.subplot(7, 2, 1)
     plt.gca().legend(('vx',))
     plt.xlabel('t (s)')
     plt.ylabel('m/s')
-    plt.subplot(5, 2, 2)
+    plt.subplot(7, 2, 2)
     plt.gca().legend(('vy',))
     plt.xlabel('t (s)')
     plt.ylabel('m/s')
-    plt.subplot(5, 2, 3)
+    plt.subplot(7, 2, 3)
     plt.gca().legend(('wz',))
     plt.xlabel('t (s)')
     plt.ylabel('rad/s')
-    plt.subplot(5, 2, 4)
+    plt.subplot(7, 2, 4)
     plt.gca().legend(('wF',))
     plt.xlabel('t (s)')
     plt.ylabel('rad/s')
-    plt.subplot(5, 2, 5)
+    plt.subplot(7, 2, 5)
     plt.gca().legend(('wR',))
     plt.xlabel('t (s)')
     plt.ylabel('rad/s')
-    plt.subplot(5, 2, 6)
+    plt.subplot(7, 2, 6)
     plt.gca().legend(('e_psi',))
     plt.xlabel('t (s)')
     plt.ylabel('rad')
-    plt.subplot(5, 2, 7)
+    plt.subplot(7, 2, 7)
     plt.gca().legend(('e_y',))
     plt.xlabel('t (s)')
     plt.ylabel('m')
-    plt.subplot(5, 2, 8)
+    plt.subplot(7, 2, 8)
     plt.gca().legend(('s',))
     plt.xlabel('t (s)')
     plt.ylabel('m')
-    plt.subplot(5, 2, 9)
+    plt.subplot(7, 2, 9)
+    plt.gca().legend(('Yaw',))
+    plt.xlabel('t (s)')
+    plt.ylabel('rad')
+    plt.subplot(7, 2, 10)
+    plt.gca().legend(('X',))
+    plt.xlabel('t (s)')
+    plt.ylabel('m')
+    plt.subplot(7, 2, 11)
+    plt.gca().legend(('Y',))
+    plt.xlabel('t (s)')
+    plt.ylabel('m')
+    plt.subplot(7, 2, 12)
+    # plt.gca().legend(('s',))
+    plt.xlabel('X (m)')
+    plt.ylabel('Y (m)')
+    plt.subplot(7, 2, 13)
     plt.gca().legend(('steering',))
     plt.xlabel('t (s)')
     # plt.ylabel('')
-    plt.subplot(5, 2, 10)
+    plt.subplot(7, 2, 14)
     plt.gca().legend(('throttle',))
     plt.xlabel('t (s)')
     # plt.ylabel('m')
@@ -308,13 +330,31 @@ def add_labels():
 def plot(states, controls, sim_length):
     plt.figure()
     time = np.arange(sim_length) / 10
-    for ii in range(10):
-        if ii < 8:
-            plt.subplot(5, 2, ii + 1)
+    mat = scipy.io.loadmat("mppi_data/track_boundaries.mat")
+    inner = mat['track_inner'].T
+    outer = mat['track_outer'].T
+    for ii in range(14):
+        plt.subplot(7, 2, ii + 1)
+        if ii < 11:
             plt.plot(time, states[ii, :])
+        elif ii == 11:
+            plt.plot(states[-2, :], states[-1, :])
+            plt.plot(inner[0, :], inner[1, :], 'k')
+            plt.plot(outer[0, :], outer[1, :], 'k')
         else:
-            plt.subplot(5, 2, ii + 1)
-            plt.plot(time, controls[ii-8, :])
+            plt.plot(time, controls[ii-12, :])
+    # states = np.load('cs_2Hz_states.npz.npy')
+    # controls = np.load('cs_2Hz_control.npz.npy')
+    # for ii in range(14):
+    #     plt.subplot(7, 2, ii + 1)
+    #     if ii < 11:
+    #         plt.plot(time, states[ii, :])
+    #     elif ii == 11:
+    #         plt.plot(states[-2, :], states[-1, :])
+    #         plt.plot(inner[0, :], inner[1, :], 'k')
+    #         plt.plot(outer[0, :], outer[1, :], 'k')
+    #     else:
+    #         plt.plot(time, controls[ii-12, :])
     add_labels()
     # mat = scipy.io.loadmat('mppi_data/track_boundaries.mat')
     # inner = mat['track_inner'].T
@@ -322,6 +362,18 @@ def plot(states, controls, sim_length):
     # plt.subplot(7, 2, 12)
     # plt.plot(inner[0, :], inner[1, :], 'k')
     # plt.plot(outer[0, :], outer[1, :], 'k')
+    # np.save('cs_5Hz_states', states)
+    # np.save('cs_5Hz_control', controls)
+    plt.show()
+    plt.figure()
+    plt.plot(states[-2, :], states[-1, :])
+    states = np.load('cs_5Hz_states.npy')
+    plt.plot(states[-2, :], states[-1, :])
+    plt.plot(inner[0, :], inner[1, :], 'k')
+    plt.plot(outer[0, :], outer[1, :], 'k')
+    plt.gca().legend(('ltv mpc', 'cs smpc', 'track boundaries'))
+    plt.xlabel('X (m)')
+    plt.ylabel('Y (m)')
     plt.show()
 
 
@@ -333,6 +385,7 @@ def run_simple_controller():
     ar = Model(N)
     x = np.array([4., 0., 0., 50., 50., 0.1, 0., 0.]).reshape((8, 1))
     state = x.copy()
+    cartesian = np.array([-0.6613+0.1, 2.78-3.25, -2.97+2.3]).reshape((-1, 1))
     y = state.copy()
     u = np.array([0.01, 0.5]).reshape((2, 1))
     xs = np.tile(x, (1, N))
@@ -356,14 +409,14 @@ def run_simple_controller():
     R_bar = np.kron(np.eye(N, dtype=int), R)
     D = np.zeros((n, l))
 
-    sim_length = 75
-    states = np.zeros((8, sim_length))
+    sim_length = 90
+    states = np.zeros((8+3, sim_length))
     controls = np.zeros((2, sim_length))
 
     solver = CSSolver(n, m, l, N, u_min, u_max)
     solve_process = DummyProcess(target=solver.solve)
     try:
-        for ii in range(int(sim_length/5)):
+        for ii in range(int(sim_length/2)):
             A, B, d = ar.linearize_dynamics(xs, us)
             if B[4, 1] < 0:
                 print(xs, us)
@@ -416,16 +469,18 @@ def run_simple_controller():
             print(us[:, 0])
             X_bar = np.dot(A, xs[:, 0]) + np.dot(B, V) + d.flatten()
             y = np.zeros((n, 1)).flatten()
-            for jj in range(5):
+            for jj in range(2):
                 # print(y)
-                u = V[jj*m:(jj+1)*m] + np.dot(K[jj*m:(jj+1)*m, jj*n:(jj+1)*n], y)
+                u = V[jj*m:(jj+1)*m] #+ np.dot(K[jj*m:(jj+1)*m, jj*n:(jj+1)*n], y)
                 u = np.where(u > u_max, u_max, u)
                 u = np.where(u < u_min, u_min, u)
-                states[:, ii*5+jj] = state.flatten()
-                controls[:, ii*5+jj] = u
-                print(state)
-                print(u)
-                state = ar.update_dynamics(state, u.reshape((-1, 1)), 0.1, throttle_nn=ar.throttle)
+                states[:n, ii*2+jj] = state.flatten()
+                states[n:, ii*2+jj] = cartesian.flatten()
+                controls[:, ii*2+jj] = u
+                # print(state)
+                # print(u)
+                state, cartesian = ar.update_dynamics(state, u.reshape((-1, 1)), 0.1, throttle_nn=ar.throttle, cartesian=cartesian)
+                state += np.array([0.1, 0.01, 0.01, 1, 1, 0, 0, 0]).reshape((-1, 1)) * np.random.randn(n, 1)
                 y = state.flatten() - X_bar[jj * n:(jj + 1) * n]
                 if jj == 0:
                     D = np.diag(y)
