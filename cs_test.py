@@ -10,7 +10,7 @@ from multiprocessing.dummy import DummyProcess
 class Model:
     def __init__(self, N):
         self.throttle = throttle_model.Net()
-        self.throttle.load_state_dict(torch.load('throttle_model2.pth'))
+        self.throttle.load_state_dict(torch.load('cs_throttle_model.pth'))
         self.N = N
 
     def get_curvature(self, s):
@@ -367,11 +367,11 @@ def plot(states, controls, sim_length):
     plt.show()
     plt.figure()
     plt.plot(states[-2, :], states[-1, :])
-    states = np.load('cs_5Hz_states.npy')
-    plt.plot(states[-2, :], states[-1, :])
+    # states = np.load('cs_5Hz_states.npy')
+    # plt.plot(states[-2, :], states[-1, :])
     plt.plot(inner[0, :], inner[1, :], 'k')
     plt.plot(outer[0, :], outer[1, :], 'k')
-    plt.gca().legend(('ltv mpc', 'cs smpc', 'track boundaries'))
+    # plt.gca().legend(('ltv mpc', 'cs smpc', 'track boundaries'))
     plt.xlabel('X (m)')
     plt.ylabel('Y (m)')
     plt.show()
@@ -409,14 +409,14 @@ def run_simple_controller():
     R_bar = np.kron(np.eye(N, dtype=int), R)
     D = np.zeros((n, l))
 
-    sim_length = 90
+    sim_length = 120
     states = np.zeros((8+3, sim_length))
     controls = np.zeros((2, sim_length))
 
     solver = CSSolver(n, m, l, N, u_min, u_max)
     solve_process = DummyProcess(target=solver.solve)
     try:
-        for ii in range(int(sim_length/2)):
+        for ii in range(int(sim_length/5)):
             A, B, d = ar.linearize_dynamics(xs, us)
             if B[4, 1] < 0:
                 print(xs, us)
@@ -469,18 +469,18 @@ def run_simple_controller():
             print(us[:, 0])
             X_bar = np.dot(A, xs[:, 0]) + np.dot(B, V) + d.flatten()
             y = np.zeros((n, 1)).flatten()
-            for jj in range(2):
+            for jj in range(5):
                 # print(y)
-                u = V[jj*m:(jj+1)*m] #+ np.dot(K[jj*m:(jj+1)*m, jj*n:(jj+1)*n], y)
+                u = V[jj*m:(jj+1)*m] + np.dot(K[jj*m:(jj+1)*m, jj*n:(jj+1)*n], y)
                 u = np.where(u > u_max, u_max, u)
                 u = np.where(u < u_min, u_min, u)
-                states[:n, ii*2+jj] = state.flatten()
-                states[n:, ii*2+jj] = cartesian.flatten()
-                controls[:, ii*2+jj] = u
+                states[:n, ii*5+jj] = state.flatten()
+                states[n:, ii*5+jj] = cartesian.flatten()
+                controls[:, ii*5+jj] = u
                 # print(state)
                 # print(u)
                 state, cartesian = ar.update_dynamics(state, u.reshape((-1, 1)), 0.1, throttle_nn=ar.throttle, cartesian=cartesian)
-                state += np.array([0.1, 0.01, 0.01, 1, 1, 0, 0, 0]).reshape((-1, 1)) * np.random.randn(n, 1)
+                # state += np.array([0.1, 0.01, 0.01, 1, 1, 0, 0, 0]).reshape((-1, 1)) * np.random.randn(n, 1)
                 y = state.flatten() - X_bar[jj * n:(jj + 1) * n]
                 if jj == 0:
                     D = np.diag(y)
