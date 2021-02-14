@@ -73,7 +73,7 @@ class CSSolver:
                 for jj in range(n):
                     for kk in range(m * (ii + 1)):
                         pattern.append([jj + n * ii, kk])
-            B = M.parameter([n*N, m*N])
+            B = M.parameter([n*N, m*N], pattern)
             sigma_N_inv = M.parameter([n, n])
             neg_x_0_T_Q_B = M.parameter([1, m*N])
             d_T_Q_B = M.parameter([1, m*N])
@@ -88,7 +88,7 @@ class CSSolver:
             E_N = Matrix.sparse(np.hstack((np.zeros((n, (N - 1) * n)), e_n)))
             E_N_T = Matrix.sparse(np.hstack((np.zeros((n, (N - 1) * n)), np.eye(n))).T)
             I = Matrix.eye(n*N)
-            Q_bar_half = Matrix.eye(n*N)
+            # Q_bar_half = Matrix.eye(n*N)
 
             # convert to linear objective with quadratic cone constraints
             u = Expr.mul(mu_0_T_A_T_Q_bar_B, V)
@@ -184,6 +184,7 @@ class CSSolver:
             self.Q_bar_half_B.setValue(np.dot(scipy.linalg.cholesky(Q_bar), B))
         except np.linalg.LinAlgError:
             self.Q_bar_half_B.setValue(np.dot(np.sqrt(Q_bar), B))
+        self.Q_bar_half.setValue(np.sqrt(Q_bar))
         try:
             self.R_bar_half.setValue(scipy.linalg.cholesky(R_bar))
         except np.linalg.LinAlgError:
