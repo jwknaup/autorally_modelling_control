@@ -175,7 +175,7 @@ class CSSolver:
         # sigma_y = np.linalg.cholesky(sigma_y)
         # Q_bar = np.eye(n*N)
         # R_bar = np.eye(m*N)
-        x_0 = np.tile(np.array([5, 0, 0, 0, 0, 0, 0, 0]).reshape((-1, 1)), (N, 1))
+        x_0 = np.tile(np.array([9, 0, 0, 0, 0, 0, 0, 0]).reshape((-1, 1)), (N, 1))
 
         self.mu_0_T_A_T_Q_bar_B.setValue(2*np.dot(np.dot(np.dot(mu_0.T, A.T), Q_bar), B))
         temp = 2*np.dot(sigma_y, np.dot(Q_bar, B)).reshape((-1, 1)).T
