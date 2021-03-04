@@ -3,10 +3,10 @@
 % [A, B, d] = linearize_dynamics(state, control, dddd)
 %%
 clc
-master = ros.Core;
-node = ros.Node('mpc');
-pub = ros.Publisher(node,'/control','std_msgs/Float64MultiArray');
-sub = ros.Subscriber(node,'/state','std_msgs/Float64MultiArray');
+% master = ros.Core;
+% node = ros.Node('mpc');
+% pub = ros.Publisher(node,'/control','std_msgs/Float64MultiArray');
+% sub = ros.Subscriber(node,'/state','std_msgs/Float64MultiArray');
 
 N = 2000;
 Nf = 1000;
@@ -33,8 +33,8 @@ sim_controls = zeros(length(control), length(time));
 x_target = subset_states(:,tend);
 % x_target = [3; 0; 0; 0; 0; 0; 0; 0];
 [control, xs, us] = LTIMPC(state, control, x_target, ddd);
-% state = update_dynamics(state, control)
-state = sim(control, pub, sub)
+state = update_dynamics(state, control)
+% state = sim(control, pub, sub)
 xs{1} = state;
 control
 for ii = 1:length(time)-tend
@@ -47,8 +47,8 @@ for ii = 1:length(time)-tend
     end
 %     control = subset_inputs(:, ii);
 %     ii
-%     state = update_dynamics(state, control);
-    state = sim(control, pub, sub);
+    state = update_dynamics(state, control);
+%     state = sim(control, pub, sub);
     xs{1} = state;
     sim_states(:,ii) = state;
     sim_controls(:,ii) = control;
@@ -108,7 +108,7 @@ end
 
 function [control, xs, us] = LTVMPC(xs, us, x_target, ddd)
     Q = zeros(8);
-    Q(1,1) = 100;
+    Q(1,1) = 0;
 %     Q(2,2) = 0.01;
 %     Q(3,3) = 10;
     Q(6,6) = 1;
