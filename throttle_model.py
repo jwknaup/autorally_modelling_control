@@ -118,11 +118,11 @@ def run_model():
     # plt.plot(time, throttle.T)
     plt.xlabel('time')
     plt.ylabel('wR (rad/s)')
-    # plt.show()
+    plt.show()
 
     N0 = 400
     Nf = -200
-    mat = scipy.io.loadmat('mppi_data/mppi_states_controls1.mat')
+    mat = scipy.io.loadmat('results/ltv testing 2021_02_21 18_57_51.mat')
     states = mat['states'][:, ::10]
     controls = mat['inputs'][:, ::10]
     wR = states[4:5, N0:Nf - 1]
@@ -163,6 +163,9 @@ def run_model():
     N0 = 400
     Nf = -200
     mat = scipy.io.loadmat('mppi_data/mppi_states_controls3.mat')
+    N0 = 377*100
+    Nf = -1*100
+    mat = scipy.io.loadmat('results/ltv testing 2021_02_21 18_30_44.mat')
     states = mat['states'][:, ::10]
     controls = mat['inputs'][:, ::10]
     wR = states[4:5, N0:Nf - 1]
@@ -389,6 +392,6 @@ def trace_model():
 
 if __name__ == '__main__':
     # train_model()
-    # run_model()
+    run_model()
     # run_full_model()
-    trace_model()
+    # trace_model()
