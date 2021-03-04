@@ -7,7 +7,7 @@ import time
 
 
 class CSSolver:
-    def __init__(self, n, m, l, N, u_min, u_max):
+    def __init__(self, n, m, l, N, u_min, u_max, mean_only=False):
         try:
             M = Model()
             self.n = n
@@ -96,35 +96,40 @@ class CSSolver:
             q = Expr.mul(neg_x_0_T_Q_B, V)
             r = Expr.mul(d_T_Q_B, V)
             # v = Expr.mul(vec_T_sigma_y_Q_bar_B, Expr.flatten(K))
-            M.objective(ObjectiveSense.Minimize, Expr.add([q, r, u, w, x, y1, y2, z1, z2]))
-            M.constraint(Expr.vstack(0.5, w, Expr.mul(Q_bar_half_B, V)), Domain.inRotatedQCone())
-            M.constraint(Expr.vstack(0.5, x, Expr.mul(R_bar_half, V)), Domain.inRotatedQCone())
-            # M.constraint(Expr.vstack(0.5, y1, Expr.flatten(Expr.mul(Expr.mul(Q_bar_half_B, K), A_sigma_0_half))),
-            #              Domain.inRotatedQCone())
-            # M.constraint(Expr.vstack(0.5, y2, Expr.flatten(Expr.mul(Expr.mul(Q_bar_half_B, K), D))),
-            #              Domain.inRotatedQCone())
-            # M.constraint(Expr.vstack(1, z1, Expr.flatten(Expr.mul(Expr.mul(R_bar_half, K), sigma_y_half))),
-            #              Domain.inRotatedQCone())
-            # M.constraint(Expr.vstack(0.5, z1, Expr.flatten(Expr.mul(Expr.mul(R_bar_half, K), A_sigma_0_half))),
-            #              Domain.inRotatedQCone())
-            # M.constraint(Expr.vstack(0.5, z2, Expr.flatten(Expr.mul(Expr.mul(R_bar_half, K), D))),
-            #              Domain.inRotatedQCone())
-            M.constraint(Expr.vstack(0.5, y1, Expr.flatten(Expr.mul(Q_bar_half, Expr.mul(Expr.add(I, Expr.mul(B, K)), A_sigma_0_half)))), Domain.inRotatedQCone())
-            # check BKD multiplicaion, or maybe with I? Something seems wrong here b/c sparsity pattern is invalid
-            M.constraint(Expr.vstack(0.5, y2, Expr.flatten(Expr.mul(Q_bar_half, Expr.mul(Expr.add(I, Expr.mul(B, K)), D)))), Domain.inRotatedQCone())
-            M.constraint(Expr.vstack(0.5, z1, Expr.flatten(Expr.mul(R_bar_half, Expr.mul(K, A_sigma_0_half)))), Domain.inRotatedQCone())
-            M.constraint(Expr.vstack(0.5, z2, Expr.flatten(Expr.mul(R_bar_half, Expr.mul(K, D)))), Domain.inRotatedQCone())
+            if not mean_only:
+                M.objective(ObjectiveSense.Minimize, Expr.add([q, r, u, w, x, y1, y2, z1, z2]))
+                M.constraint(Expr.vstack(0.5, w, Expr.mul(Q_bar_half_B, V)), Domain.inRotatedQCone())
+                M.constraint(Expr.vstack(0.5, x, Expr.mul(R_bar_half, V)), Domain.inRotatedQCone())
+                # M.constraint(Expr.vstack(0.5, y1, Expr.flatten(Expr.mul(Expr.mul(Q_bar_half_B, K), A_sigma_0_half))),
+                #              Domain.inRotatedQCone())
+                # M.constraint(Expr.vstack(0.5, y2, Expr.flatten(Expr.mul(Expr.mul(Q_bar_half_B, K), D))),
+                #              Domain.inRotatedQCone())
+                # M.constraint(Expr.vstack(1, z1, Expr.flatten(Expr.mul(Expr.mul(R_bar_half, K), sigma_y_half))),
+                #              Domain.inRotatedQCone())
+                # M.constraint(Expr.vstack(0.5, z1, Expr.flatten(Expr.mul(Expr.mul(R_bar_half, K), A_sigma_0_half))),
+                #              Domain.inRotatedQCone())
+                # M.constraint(Expr.vstack(0.5, z2, Expr.flatten(Expr.mul(Expr.mul(R_bar_half, K), D))),
+                #              Domain.inRotatedQCone())
+                M.constraint(Expr.vstack(0.5, y1, Expr.flatten(Expr.mul(Q_bar_half, Expr.mul(Expr.add(I, Expr.mul(B, K)), A_sigma_0_half)))), Domain.inRotatedQCone())
+                # check BKD multiplicaion, or maybe with I? Something seems wrong here b/c sparsity pattern is invalid
+                M.constraint(Expr.vstack(0.5, y2, Expr.flatten(Expr.mul(Q_bar_half, Expr.mul(Expr.add(I, Expr.mul(B, K)), D)))), Domain.inRotatedQCone())
+                M.constraint(Expr.vstack(0.5, z1, Expr.flatten(Expr.mul(R_bar_half, Expr.mul(K, A_sigma_0_half)))), Domain.inRotatedQCone())
+                M.constraint(Expr.vstack(0.5, z2, Expr.flatten(Expr.mul(R_bar_half, Expr.mul(K, D)))), Domain.inRotatedQCone())
+            else:
+                M.objective(ObjectiveSense.Minimize, Expr.add([q, r, u, w, x]))
+                M.constraint(Expr.vstack(0.5, w, Expr.mul(Q_bar_half_B, V)), Domain.inRotatedQCone())
+                M.constraint(Expr.vstack(0.5, x, Expr.mul(R_bar_half, V)), Domain.inRotatedQCone())
 
             # umax = np.array([100.0, 100.0])
             # umin = np.array([-100.0, -100.0])
-            M.constraint(Expr.sub(V.slice(2, N*m), V.slice(0, N*m-2)), Domain.inRange(-0.1, 0.1))
+            M.constraint(Expr.sub(V.slice(2, N*m), V.slice(0, N*m-2)), Domain.inRange(-0.2, 0.2))
             u_oo = np.array([[0.0], [0.5]])
             # u_o = Matrix.dense(u_oo)
             self.u_o = M.parameter()
             self.u_o.setValue(0.3)
             u_0.setValue(0.5)
             # print(u_0.getValue())
-            M.constraint(Expr.sub(self.u_o, V.index(1)), Domain.inRange(-0.1, 0.1))
+            M.constraint(Expr.sub(self.u_o, V.index(1)), Domain.inRange(-0.2, 0.2))
 
             # terminal mean constraint
             # M.constraint(Expr.mul(E_N, Expr.add(A_mu_0, Expr.mul(B, V))), Domain.equalsTo(mu_N))
@@ -175,7 +180,7 @@ class CSSolver:
         # sigma_y = np.linalg.cholesky(sigma_y)
         # Q_bar = np.eye(n*N)
         # R_bar = np.eye(m*N)
-        x_0 = np.tile(np.array([9, 0, 0, 0, 0, 0, 0, 0]).reshape((-1, 1)), (N, 1))
+        x_0 = np.tile(np.array([5, 0, 0, 0, 0, 0, 0, 0]).reshape((-1, 1)), (N, 1))
 
         self.mu_0_T_A_T_Q_bar_B.setValue(2*np.dot(np.dot(np.dot(mu_0.T, A.T), Q_bar), B))
         temp = 2*np.dot(sigma_y, np.dot(Q_bar, B)).reshape((-1, 1)).T
