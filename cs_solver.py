@@ -8,7 +8,7 @@ import time
 
 
 class CSSolver:
-    def __init__(self, n, m, l, N, u_min, u_max, mean_only=False):
+    def __init__(self, n, m, l, N, u_min, u_max, mean_only=False, lti_k=False):
         try:
             M = Model()
             self.n = n
@@ -20,20 +20,33 @@ class CSSolver:
             umin = np.tile(u_min.reshape((-1, 1)), (N, 1)).flatten()
 
             V = M.variable("V", m*N, Domain.inRange(umin, umax))
-            # pattern = []
-            # for ii in range(N):
-            #     for jj in range(m):
-            #         for ll in range(n):
-            #             row = ii*m + jj
-            #             col = ii*n + ll
-            #             pattern.append([row, col])
-            # K = M.variable([m*N, n*N], Domain.sparse(Domain.unbounded(), pattern))
-            k = M.variable([m, n])
-            k_rep = Expr.repeat(k, N, 0)
-            k_rep2 = Expr.repeat(k_rep, N, 1)
-            identity_k = np.kron(np.eye(N), np.ones((m, n)))
-            K_dot = Matrix.sparse(identity_k)
-            K = Expr.mulElm(K_dot, k_rep2)
+            k = None
+            if not mean_only:
+                if lti_k:
+                    k = M.variable([m, n])
+                    k_rep = Expr.repeat(k, N, 0)
+                    k_rep2 = Expr.repeat(k_rep, N, 1)
+                    identity_k = np.kron(np.eye(N), np.ones((m, n)))
+                    K_dot = Matrix.sparse(identity_k)
+                    K = Expr.mulElm(K_dot, k_rep2)
+                else:
+                    pattern = []
+                    for ii in range(N):
+                        for jj in range(m):
+                            for ll in range(n):
+                                row = ii*m + jj
+                                col = ii*n + ll
+                                pattern.append([row, col])
+                    K = M.variable([m*N, n*N], Domain.sparse(Domain.unbounded(), pattern))
+            else:
+                pattern = []
+                for ii in range(N):
+                    for jj in range(m):
+                        for ll in range(n):
+                            row = ii * m + jj
+                            col = ii * n + ll
+                            pattern.append([row, col])
+                K = M.parameter([m*N, n*N], pattern)
 
             # linear variables with quadratic cone constraints
             w = M.variable("w", 1, Domain.unbounded())
@@ -88,7 +101,6 @@ class CSSolver:
             u_0 = M.parameter([m, 1])
 
             I = Matrix.eye(n*N)
-            # Q_bar_half = Matrix.eye(n*N)
 
             # convert to linear objective with quadratic cone constraints
             u = Expr.mul(mu_0_T_A_T_Q_bar_B, V)
@@ -100,16 +112,7 @@ class CSSolver:
                 M.objective(ObjectiveSense.Minimize, Expr.add([q, r, u, w, x, y1, y2, z1, z2]))
                 M.constraint(Expr.vstack(0.5, w, Expr.mul(Q_bar_half_B, V)), Domain.inRotatedQCone())
                 M.constraint(Expr.vstack(0.5, x, Expr.mul(R_bar_half, V)), Domain.inRotatedQCone())
-                # M.constraint(Expr.vstack(0.5, y1, Expr.flatten(Expr.mul(Expr.mul(Q_bar_half_B, K), A_sigma_0_half))),
-                #              Domain.inRotatedQCone())
-                # M.constraint(Expr.vstack(0.5, y2, Expr.flatten(Expr.mul(Expr.mul(Q_bar_half_B, K), D))),
-                #              Domain.inRotatedQCone())
-                # M.constraint(Expr.vstack(1, z1, Expr.flatten(Expr.mul(Expr.mul(R_bar_half, K), sigma_y_half))),
-                #              Domain.inRotatedQCone())
-                # M.constraint(Expr.vstack(0.5, z1, Expr.flatten(Expr.mul(Expr.mul(R_bar_half, K), A_sigma_0_half))),
-                #              Domain.inRotatedQCone())
-                # M.constraint(Expr.vstack(0.5, z2, Expr.flatten(Expr.mul(Expr.mul(R_bar_half, K), D))),
-                #              Domain.inRotatedQCone())
+
                 M.constraint(Expr.vstack(0.5, y1, Expr.flatten(Expr.mul(Q_bar_half, Expr.mul(Expr.add(I, Expr.mul(B, K)), A_sigma_0_half)))), Domain.inRotatedQCone())
                 # check BKD multiplicaion, or maybe with I? Something seems wrong here b/c sparsity pattern is invalid
                 M.constraint(Expr.vstack(0.5, y2, Expr.flatten(Expr.mul(Q_bar_half, Expr.mul(Expr.add(I, Expr.mul(B, K)), D)))), Domain.inRotatedQCone())
@@ -120,8 +123,6 @@ class CSSolver:
                 M.constraint(Expr.vstack(0.5, w, Expr.mul(Q_bar_half_B, V)), Domain.inRotatedQCone())
                 M.constraint(Expr.vstack(0.5, x, Expr.mul(R_bar_half, V)), Domain.inRotatedQCone())
 
-            # umax = np.array([100.0, 100.0])
-            # umin = np.array([-100.0, -100.0])
             M.constraint(Expr.sub(V.slice(2, N*m), V.slice(0, N*m-2)), Domain.inRange(-0.2, 0.2))
             u_oo = np.array([[0.0], [0.5]])
             # u_o = Matrix.dense(u_oo)
@@ -170,6 +171,7 @@ class CSSolver:
                 e_k = np.eye(n)
                 E_k = Matrix.sparse(np.hstack((np.zeros((n, (ii) * n)), e_k, np.zeros((n, (N - ii - 1) * n)))))
                 mean_part = Expr.mul(alpha_T, Expr.mul(E_k, Expr.add(Expr.add(A_mu_0, Expr.mul(B, V)), d)))
+                # if not mean_only:
                 sigma_0_part = M.variable()
                 M.constraint(Expr.vstack(sigma_0_part, Expr.flatten(Expr.mul(alpha_T, Expr.mul(E_k, Expr.mul(Expr.add(I, Expr.mul(B, K)), A_sigma_0_half))))), Domain.inQCone())
                 D_part = M.variable()
@@ -177,6 +179,8 @@ class CSSolver:
                 cov_part = M.variable()
                 M.constraint(Expr.vstack(cov_part, sigma_0_part, D_part), Domain.inQCone())
                 M.constraint(Expr.add(mean_part, Expr.mul(cov_part, inv_prob)), Domain.lessThan(beta))
+                # else:
+                #     M.constraint(Expr.add(mean_part, cov_part * inv_prob), Domain.lessThan(beta))
                 # M.constraint(mean_part, Domain.lessThan(beta))
 
             # M.setLogHandler(sys.stdout)
@@ -200,12 +204,14 @@ class CSSolver:
             self.neg_x_0_T_Q_B = neg_x_0_T_Q_B
             self.d_T_Q_B = d_T_Q_B
             self.u_0 = u_0
+            self.mean_only = mean_only
+            self.lti_k = lti_k
 
         finally:
             pass
             # M.dispose()
 
-    def populate_params(self, A, B, d, D, mu_0, sigma_0, sigma_N_inv, Q_bar, R_bar, u_0):
+    def populate_params(self, A, B, d, D, mu_0, sigma_0, sigma_N_inv, Q_bar, R_bar, u_0, K=None):
         n = 8
         m = 2
         l = 8
@@ -222,7 +228,7 @@ class CSSolver:
         # sigma_y = np.linalg.cholesky(sigma_y)
         # Q_bar = np.eye(n*N)
         # R_bar = np.eye(m*N)
-        x_0 = np.tile(np.array([8, 0, 0, 0, 0, 0, 0, 0]).reshape((-1, 1)), (N, 1))
+        x_0 = np.tile(np.array([7, 0, 0, 0, 0, 0, 0, 0]).reshape((-1, 1)), (N, 1))
 
         self.mu_0_T_A_T_Q_bar_B.setValue(2*np.dot(np.dot(np.dot(mu_0.T, A.T), Q_bar), B))
         temp = 2*np.dot(sigma_y, np.dot(Q_bar, B)).reshape((-1, 1)).T
@@ -259,6 +265,8 @@ class CSSolver:
         u_oo = np.array([[0.1], [0.1]])
         self.u_o.setValue(u_0[1])
         # self.M.writeTask('dump.opf')
+        if self.mean_only:
+            self.K.setValue(K)
 
     def solve(self):
         # print(self.u_0.getValue())
@@ -267,7 +275,13 @@ class CSSolver:
         self.M.solve()
         print((time.time() - t0))
         try:
-            K_level = np.kron(np.eye(self.N), self.k.level().reshape((self.m, self.n)))
+            if self.mean_only:
+                K_level = np.zeros((self.m*self.N, self.n*self.N))
+            else:
+                if self.lti_k:
+                    K_level = np.kron(np.eye(self.N), self.k.level().reshape((self.m, self.n)))
+                else:
+                    K_level = self.K.level()
             levels = (self.V.level(), K_level)
             # print(levels)
             return levels

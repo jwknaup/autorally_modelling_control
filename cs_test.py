@@ -413,14 +413,18 @@ def run_simple_controller():
     R_bar = np.kron(np.eye(N, dtype=int), R)
     D = np.zeros((n, l))
 
-    sim_length = 180
+    sim_length = 90
     states = np.zeros((8+3, sim_length))
     controls = np.zeros((2, sim_length))
 
     ks = np.zeros((m*N, n*N, sim_length))
     ss = np.zeros((1, sim_length))
+    dictionary = np.load("Ks1.npy")
+    dictionary = dictionary[()]
+    ks = dictionary['ks']
+    ss = dictionary['ss']
 
-    solver = CSSolver(n, m, l, N, u_min, u_max)
+    solver = CSSolver(n, m, l, N, u_min, u_max, mean_only=True)
     solve_process = DummyProcess(target=solver.solve)
     try:
         for ii in range(int(sim_length/1)):
@@ -448,7 +452,9 @@ def run_simple_controller():
             A, B, d, D = ar.form_long_matrices_LTV(A, B, d, D)
             # A, B, D = ar.form_long_matrices_LTI(A[:, :, 0], B[:, :, 0], np.zeros((8, 8)))
             # print(np.allclose(A1, A), np.allclose(B1, B))
-            solver.populate_params(A, B, d, D, xs[:, 0], sigma_0, sigma_N_inv, Q_bar, R_bar, us[:, 0])
+            nearest = np.argmin(np.abs(state[7, 0] - ss[0, :]))
+            K = ks[:, :, nearest]
+            solver.populate_params(A, B, d, D, xs[:, 0], sigma_0, sigma_N_inv, Q_bar, R_bar, us[:, 0], K=K)
             # A = np.eye(8)
             # A[0, 0] = 0.5
             # A[0, 4] = 0.5
@@ -476,8 +482,8 @@ def run_simple_controller():
             #     ks[:, :, ii] = K[:, :]
             #     ss[0, ii] = state[7, 0]
             # else:
-            #     nearest = np.argmin(np.abs(state[7, 0] - ss[0, :]))
-            #     K = ks[:, :, nearest]
+            nearest = np.argmin(np.abs(state[7, 0] - ss[0, :]))
+            K = ks[:, :, nearest]
             # differences = np.zeros((N-1, 1)).flatten()
             # for ii in range(N):
             #     k[:, :, ii] = K[ii*m:(ii+1)*m, ii*n:(ii+1)*n]
@@ -521,6 +527,8 @@ def run_simple_controller():
             # print(X.reshape((10, 8)))
             #     solver.time()
         plot(states, controls, sim_length)
+        # dictionary = {'ks': ks, 'ss': ss}
+        # np.save('Ks1', dictionary)
     finally:
         solver.M.dispose()
 
