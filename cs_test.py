@@ -1,3 +1,4 @@
+import time
 import numpy as np
 from numpy import sin, cos, tan, arctan as atan, sqrt, arctan2 as atan2, zeros, zeros_like, abs, pi
 import scipy.io
@@ -6,6 +7,7 @@ import torch
 import throttle_model
 from multiprocessing import Process
 from multiprocessing.dummy import DummyProcess
+
 
 class Model:
     def __init__(self, N):
@@ -23,6 +25,8 @@ class Model:
                 [-0.24, -0.66, -0.6613, 51.8453, 7.2218, 0]
             ]
         num_segments = 5
+        while (s > map_params[num_segments-1][3] + map_params[num_segments-1][4]).any():
+            s[s > map_params[num_segments-1][3] + map_params[num_segments-1][4]] -= map_params[num_segments-1][3] + map_params[num_segments-1][4]
         for ii in range(num_segments):
             truths = np.where(np.logical_and(map_params[ii][3] <= s, s <= map_params[ii][3] + map_params[ii][4]))
             rho[truths] = map_params[ii][5]
@@ -390,7 +394,7 @@ def run_simple_controller():
     u = np.array([0.01, 0.5]).reshape((2, 1))
     xs = np.tile(x, (1, N))
     us = np.tile(u, (1, N))
-    u_min = np.array([-0.9, 0.1])
+    u_min = np.array([-0.9, -0.9])
     u_max = np.array([0.9, 0.9])
     sigma_0 = np.zeros((n, n))
     # sigma_0 = np.random.randn(n, n)
@@ -409,14 +413,17 @@ def run_simple_controller():
     R_bar = np.kron(np.eye(N, dtype=int), R)
     D = np.zeros((n, l))
 
-    sim_length = 120
+    sim_length = 180
     states = np.zeros((8+3, sim_length))
     controls = np.zeros((2, sim_length))
+
+    ks = np.zeros((m*N, n*N, sim_length))
+    ss = np.zeros((1, sim_length))
 
     solver = CSSolver(n, m, l, N, u_min, u_max)
     solve_process = DummyProcess(target=solver.solve)
     try:
-        for ii in range(int(sim_length/5)):
+        for ii in range(int(sim_length/1)):
             A, B, d = ar.linearize_dynamics(xs, us)
             if B[4, 1] < 0:
                 print(xs, us)
@@ -459,8 +466,24 @@ def run_simple_controller():
             # solve_process.start()
             # solve_process.join()
             # V, K = (solver.V.level(), solver.K.level())
-            V, K = solver.solve()
-            K = K.reshape((m*N, n*N))
+            try:
+                V, K = solver.solve()
+                K = K.reshape((m*N, n*N))
+            except RuntimeError:
+                V = np.tile(np.array([0, -1]).reshape((-1, 1)), (N, 1)).flatten()
+                K = np.zeros((m*N, n*N))
+            # if ii < 90:
+            #     ks[:, :, ii] = K[:, :]
+            #     ss[0, ii] = state[7, 0]
+            # else:
+            #     nearest = np.argmin(np.abs(state[7, 0] - ss[0, :]))
+            #     K = ks[:, :, nearest]
+            # differences = np.zeros((N-1, 1)).flatten()
+            # for ii in range(N):
+            #     k[:, :, ii] = K[ii*m:(ii+1)*m, ii*n:(ii+1)*n]
+            #     if ii > 0:
+            #         differences[ii-1] = np.linalg.norm(k[:, :, ii] - k[:, :, ii-1]) / np.linalg.norm(k[:, :, ii])
+            # ave_dif = np.mean(differences)
             # print(K)
             us = V.reshape((m, N), order='F')
             us[:, 0] = V[:m]
@@ -469,14 +492,14 @@ def run_simple_controller():
             print(us[:, 0])
             X_bar = np.dot(A, xs[:, 0]) + np.dot(B, V) + d.flatten()
             y = np.zeros((n, 1)).flatten()
-            for jj in range(5):
+            for jj in range(1):
                 # print(y)
                 u = V[jj*m:(jj+1)*m] + np.dot(K[jj*m:(jj+1)*m, jj*n:(jj+1)*n], y)
                 u = np.where(u > u_max, u_max, u)
                 u = np.where(u < u_min, u_min, u)
-                states[:n, ii*5+jj] = state.flatten()
-                states[n:, ii*5+jj] = cartesian.flatten()
-                controls[:, ii*5+jj] = u
+                states[:n, ii*1+jj] = state.flatten()
+                states[n:, ii*1+jj] = cartesian.flatten()
+                controls[:, ii*1+jj] = u
                 # print(state)
                 # print(u)
                 state, cartesian = ar.update_dynamics(state, u.reshape((-1, 1)), 0.1, throttle_nn=ar.throttle, cartesian=cartesian)
@@ -504,6 +527,30 @@ def run_simple_controller():
 
 from cs_solver import CSSolver
 if __name__ == '__main__':
+    # u_min = np.array([-0.9, 0.1])
+    # u_max = np.array([0.9, 0.9])
+    # x = np.array([4., 0., 0., 50., 50., 0.1, 0., 0.]).reshape((8, 1))
+    # u = np.array([0.01, 0.5]).reshape((2, 1))
+    # xs = np.tile(x, (1, 10))
+    # us = np.tile(u, (1, 10))
+    # solver = CSSolver(8, 2, 8, 10, u_min, u_max)
+    # solver2 = CSSolver(8, 2, 8, 10, u_min, u_max)
+    # ar = Model(10)
+    # solve_process = DummyProcess(target=solver.solve)
+    # solve_process2 = DummyProcess(target=solver2.solve)
+    # lin_process = DummyProcess(target=ar.linearize_dynamics, args=(xs, us))
+    # solve_process.start()
+    # # lin_process.start()
+    # solve_process.join()
+    # # lin_process.join()
+    # t0 = time.time()
+    # A, B, d = ar.linearize_dynamics(xs, us)
+    # D = np.zeros((8, 8, 10))
+    # A = A.reshape((8, 8, 10), order='F')
+    # B = B.reshape((8, 2, 10), order='F')
+    # d = d.reshape((8, 1, 10), order='F')
+    # ar.form_long_matrices_LTV(A, B, d, D)
+    # print(time.time() - t0)
     # ar = Model(1)
     # throttle = throttle_model.Net()
     # xs = np.array([4.97, -0.01, -0.069, 50, 49, 0.1, 0.0049, 0.049]).reshape((-1, 1))
