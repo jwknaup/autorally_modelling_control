@@ -387,6 +387,7 @@ def run_simple_controller():
     l = 8
     N = 10
     ar = Model(N)
+    x_target = np.tile(np.array([7, 0, 0, 0, 0, 0, 0, 0]).reshape((-1, 1)), (N, 1))
     x = np.array([4., 0., 0., 50., 50., 0.1, 0., 0.]).reshape((8, 1))
     state = x.copy()
     cartesian = np.array([-0.6613+0.1, 2.78-3.25, -2.97+2.3]).reshape((-1, 1))
@@ -454,7 +455,7 @@ def run_simple_controller():
             # print(np.allclose(A1, A), np.allclose(B1, B))
             nearest = np.argmin(np.abs(state[7, 0] - ss[0, :]))
             K = ks[:, :, nearest]
-            solver.populate_params(A, B, d, D, xs[:, 0], sigma_0, sigma_N_inv, Q_bar, R_bar, us[:, 0], K=K)
+            solver.populate_params(A, B, d, D, xs[:, 0], sigma_0, sigma_N_inv, Q_bar, R_bar, us[:, 0], x_target, K=K)
             # A = np.eye(8)
             # A[0, 0] = 0.5
             # A[0, 4] = 0.5

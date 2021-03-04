@@ -211,7 +211,7 @@ class CSSolver:
             pass
             # M.dispose()
 
-    def populate_params(self, A, B, d, D, mu_0, sigma_0, sigma_N_inv, Q_bar, R_bar, u_0, K=None):
+    def populate_params(self, A, B, d, D, mu_0, sigma_0, sigma_N_inv, Q_bar, R_bar, u_0, x_target, K=None):
         n = 8
         m = 2
         l = 8
@@ -228,20 +228,20 @@ class CSSolver:
         # sigma_y = np.linalg.cholesky(sigma_y)
         # Q_bar = np.eye(n*N)
         # R_bar = np.eye(m*N)
-        x_0 = np.tile(np.array([7, 0, 0, 0, 0, 0, 0, 0]).reshape((-1, 1)), (N, 1))
+        x_0 = x_target.copy()
 
         self.mu_0_T_A_T_Q_bar_B.setValue(2*np.dot(np.dot(np.dot(mu_0.T, A.T), Q_bar), B))
         temp = 2*np.dot(sigma_y, np.dot(Q_bar, B)).reshape((-1, 1)).T
         self.vec_T_sigma_y_Q_bar_B.setValue(temp)
-        try:
-            self.Q_bar_half_B.setValue(np.dot(scipy.linalg.cholesky(Q_bar), B))
-        except np.linalg.LinAlgError:
-            self.Q_bar_half_B.setValue(np.dot(np.sqrt(Q_bar), B))
+        # try:
+        #     self.Q_bar_half_B.setValue(np.dot(scipy.linalg.cholesky(Q_bar), B))
+        # except np.linalg.LinAlgError:
+        self.Q_bar_half_B.setValue(np.dot(np.sqrt(Q_bar), B))
         self.Q_bar_half.setValue(np.sqrt(Q_bar))
-        try:
-            self.R_bar_half.setValue(scipy.linalg.cholesky(R_bar))
-        except np.linalg.LinAlgError:
-            self.R_bar_half.setValue(np.sqrt(R_bar))
+        # try:
+        #     self.R_bar_half.setValue(scipy.linalg.cholesky(R_bar))
+        # except np.linalg.LinAlgError:
+        self.R_bar_half.setValue(np.sqrt(R_bar))
         # try:
         #     self.Q_bar_half.setValue(scipy.linalg.cholesky(Q_bar))
         # except np.linalg.LinAlgError:
@@ -251,10 +251,10 @@ class CSSolver:
         # except np.linalg.LinAlgError:
         #     print("cholesky failed")
         #     self.sigma_y_half.setValue(np.sqrt(sigma_y))
-        try:
-            self.A_sigma_0_half.setValue(np.dot(A, np.linalg.cholesky(sigma_0)))
-        except np.linalg.LinAlgError:
-            self.A_sigma_0_half.setValue(np.dot(A, np.sqrt(sigma_0)))
+        # try:
+        #     self.A_sigma_0_half.setValue(np.dot(A, np.linalg.cholesky(sigma_0)))
+        # except np.linalg.LinAlgError:
+        self.A_sigma_0_half.setValue(np.dot(A, np.sqrt(sigma_0)))
         self.D.setValue(D)
         self.A_mu_0.setValue((np.dot(A, mu_0)))
         self.B.setValue(B)
