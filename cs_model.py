@@ -7,7 +7,7 @@ import throttle_model
 class Model:
     def __init__(self, N):
         self.throttle = throttle_model.Net()
-        self.throttle.load_state_dict(torch.load('throttle_model2.pth'))
+        self.throttle.load_state_dict(torch.load('cs_throttle_model.pth'))
         self.N = N
 
     def get_curvature(self, s):
@@ -66,9 +66,8 @@ class Model:
         if (wR < 1).any():
             wR = np.ones_like(wR) * 1
 
-
-        m_Vehicle_kSteering = 1 # -pi / 180 * 18.7861
-        m_Vehicle_cSteering = 0 # 0.0109
+        m_Vehicle_kSteering = -0.3  # -pi / 180 * 18.7861
+        m_Vehicle_cSteering = 0.008  # 0.0109
         throttle_factor = 0.31
         # delta = input[:, 0]
         steering = input[:, 0]
@@ -165,7 +164,7 @@ class Model:
         dt = 0.1
 
         delta_x = np.array([0.01, 0.001, 0.01, 0.1, 0.1, 0.05, 0.1, 0.2])
-        delta_u = np.array([0.001, 0.01])
+        delta_u = np.array([0.01, 0.01])
         delta_x_flat = np.tile(delta_x, (1, nN))
         delta_u_flat = np.tile(delta_u, (1, nN))
         delta_x_final = np.multiply(np.tile(np.eye(nx), (1, nN)), delta_x_flat)
@@ -176,9 +175,9 @@ class Model:
         x_plus = xx + delta_x_final
         # print(x_plus, ux)
         x_minus = xx - delta_x_final
-        fx_plus = self.update_dynamics(x_plus, ux, dt, throttle_nn=self.throttle)
+        fx_plus = self.update_dynamics(x_plus, ux, dt)
         # print(fx_plus)
-        fx_minus = self.update_dynamics(x_minus, ux, dt, throttle_nn=self.throttle)
+        fx_minus = self.update_dynamics(x_minus, ux, dt)
         A = (fx_plus - fx_minus) / (2 * delta_x_flat)
 
         xu = np.tile(states, (nu, 1)).reshape((nx, nu*nN), order='F')
@@ -186,9 +185,9 @@ class Model:
         u_plus = uu + delta_u_final
         # print(xu)
         u_minus = uu - delta_u_final
-        fu_plus = self.update_dynamics(xu, u_plus, dt, throttle_nn=self.throttle)
+        fu_plus = self.update_dynamics(xu, u_plus, dt)
         # print(fu_plus)
-        fu_minus = self.update_dynamics(xu, u_minus, dt, throttle_nn=self.throttle)
+        fu_minus = self.update_dynamics(xu, u_minus, dt)
         B = (fu_plus - fu_minus) / (2 * delta_u_flat)
 
         state_row = np.zeros((nx*nN, nN))
@@ -196,7 +195,7 @@ class Model:
         for ii in range(nN):
             state_row[ii*nx:ii*nx + nx, ii] = states[:, ii]
             input_row[ii*nu:ii*nu+nu, ii] = controls[:, ii]
-        d = self.update_dynamics(states, controls, dt, throttle_nn=self.throttle) - np.dot(A, state_row) - np.dot(B, input_row)
+        d = self.update_dynamics(states, controls, dt) - np.dot(A, state_row) - np.dot(B, input_row)
 
         return A, B, d
 
