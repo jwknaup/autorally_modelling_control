@@ -3,6 +3,7 @@ import sys
 from mosek.fusion import *
 import numpy as np
 import scipy.linalg
+import scipy.stats
 import time
 
 
@@ -19,14 +20,20 @@ class CSSolver:
             umin = np.tile(u_min.reshape((-1, 1)), (N, 1)).flatten()
 
             V = M.variable("V", m*N, Domain.inRange(umin, umax))
-            pattern = []
-            for ii in range(N):
-                for jj in range(m):
-                    for ll in range(n):
-                        row = ii*m + jj
-                        col = ii*n + ll
-                        pattern.append([row, col])
-            K = M.variable([m*N, n*N], Domain.sparse(Domain.unbounded(), pattern))
+            # pattern = []
+            # for ii in range(N):
+            #     for jj in range(m):
+            #         for ll in range(n):
+            #             row = ii*m + jj
+            #             col = ii*n + ll
+            #             pattern.append([row, col])
+            # K = M.variable([m*N, n*N], Domain.sparse(Domain.unbounded(), pattern))
+            k = M.variable([m, n])
+            k_rep = Expr.repeat(k, N, 0)
+            k_rep2 = Expr.repeat(k_rep, N, 1)
+            identity_k = np.kron(np.eye(N), np.ones((m, n)))
+            K_dot = Matrix.sparse(identity_k)
+            K = Expr.mulElm(K_dot, k_rep2)
 
             # linear variables with quadratic cone constraints
             w = M.variable("w", 1, Domain.unbounded())
@@ -73,20 +80,13 @@ class CSSolver:
                 for jj in range(n):
                     for kk in range(m * (ii + 1)):
                         pattern.append([jj + n * ii, kk])
-            B = M.parameter([n*N, m*N], pattern)
+            B = M.parameter([n*N, m*N])
+            d = M.parameter([n*N, 1])
             sigma_N_inv = M.parameter([n, n])
             neg_x_0_T_Q_B = M.parameter([1, m*N])
             d_T_Q_B = M.parameter([1, m*N])
             u_0 = M.parameter([m, 1])
 
-            mu_N = np.zeros((n, 1))
-            mu_N = np.array([0., 0., 0., 0., 0., 0., 0., 0.]).reshape((8, 1))
-            mu_N = Matrix.dense(mu_N)
-            e_n = np.zeros((n, n))
-            e_n[5, 5] = 1
-            # e_n[6, 6] = 1
-            E_N = Matrix.sparse(np.hstack((np.zeros((n, (N - 1) * n)), e_n)))
-            E_N_T = Matrix.sparse(np.hstack((np.zeros((n, (N - 1) * n)), np.eye(n))).T)
             I = Matrix.eye(n*N)
             # Q_bar_half = Matrix.eye(n*N)
 
@@ -126,18 +126,59 @@ class CSSolver:
             # print(u_0.getValue())
             M.constraint(Expr.sub(self.u_o, V.index(1)), Domain.inRange(-0.1, 0.1))
 
+            # M.constraint(K.slice([0, 0], [m, n]), Domain.equalsTo(K.slice([m, n], [2*m, 2*n])))
+
             # terminal mean constraint
-            # M.constraint(Expr.mul(E_N, Expr.add(A_mu_0, Expr.mul(B, V))), Domain.equalsTo(mu_N))
+            mu_N = np.zeros((n, 1))
+            mu_N = np.array([7.5, 2., 2.5, 100., 100., 1., 0.5, 1000.]).reshape((8, 1))
+            mu_N = Matrix.dense(mu_N)
+            e_n = np.zeros((n, n))
+            e_n[4, 4] = 1
+            e_n[6, 6] = 1
+            e_n = np.eye(n)
+            E_N = Matrix.sparse(np.hstack((np.zeros((n, (N - 1) * n)), e_n)))
+            E_N_T = Matrix.sparse(np.hstack((np.zeros((n, (N - 1) * n)), np.eye(n))).T)
+            M.constraint(Expr.mul(E_N, Expr.add(Expr.add(A_mu_0, Expr.mul(B, V)), d)), Domain.lessThan(mu_N))
+            e_n = -1 * e_n
+            E_N = Matrix.sparse(np.hstack((np.zeros((n, (N - 1) * n)), e_n)))
+            E_N_T = Matrix.sparse(np.hstack((np.zeros((n, (N - 1) * n)), np.eye(n))).T)
+            M.constraint(Expr.mul(E_N, Expr.add(Expr.add(A_mu_0, Expr.mul(B, V)), d)), Domain.lessThan(mu_N))
             # terminal covariance constraint
-            # M.constraint(Expr.vstack(1, Expr.flatten(
-            #     Expr.mul(Expr.mul(Expr.mul(sigma_y_half, Expr.transpose(Expr.add(I, Expr.mul(B, K)))), E_N_T),
-            #              sigma_N_inv))), Domain.inQCone())
+            # sigma_0_part = M.variable()
+            # M.constraint(Expr.vstack(sigma_0_part, Expr.flatten(
+            #     Expr.mul(alpha_T, Expr.mul(E_k, Expr.mul(Expr.add(I, Expr.mul(B, K)), A_sigma_0_half))))),
+            #              Domain.inQCone())
+            # D_part = M.variable()
+            # M.constraint(Expr.vstack(D_part, Expr.flatten(
+            #     Expr.mul(alpha_T, Expr.mul(E_k, Expr.mul(Expr.add(I, Expr.mul(B, K)), D))))), Domain.inQCone())
+            # cov_part = M.variable()
+            # M.constraint(Expr.vstack(cov_part, sigma_0_part, D_part), Domain.inQCone())
+
+            # chance constraint
+            for ii in range(N):
+                alpha = np.zeros((n, 1))
+                alpha[6, 0] = -1
+                alpha_T = Matrix.sparse(alpha.T)
+                alpha = Matrix.sparse(alpha)
+                beta = 1
+                inv_prob = scipy.stats.norm.ppf(0.95)
+                e_k = np.eye(n)
+                E_k = Matrix.sparse(np.hstack((np.zeros((n, (ii) * n)), e_k, np.zeros((n, (N - ii - 1) * n)))))
+                mean_part = Expr.mul(alpha_T, Expr.mul(E_k, Expr.add(Expr.add(A_mu_0, Expr.mul(B, V)), d)))
+                sigma_0_part = M.variable()
+                M.constraint(Expr.vstack(sigma_0_part, Expr.flatten(Expr.mul(alpha_T, Expr.mul(E_k, Expr.mul(Expr.add(I, Expr.mul(B, K)), A_sigma_0_half))))), Domain.inQCone())
+                D_part = M.variable()
+                M.constraint(Expr.vstack(D_part, Expr.flatten(Expr.mul(alpha_T, Expr.mul(E_k, Expr.mul(Expr.add(I, Expr.mul(B, K)), D)))).slice(0, (ii+1)*l)), Domain.inQCone())
+                cov_part = M.variable()
+                M.constraint(Expr.vstack(cov_part, sigma_0_part, D_part), Domain.inQCone())
+                M.constraint(Expr.add(mean_part, Expr.mul(cov_part, inv_prob)), Domain.lessThan(beta))
+                # M.constraint(mean_part, Domain.lessThan(beta))
 
             # M.setLogHandler(sys.stdout)
 
             self.M = M
             self.V = V
-            # self.k = k
+            self.k = k
             self.K = K
             self.mu_0_T_A_T_Q_bar_B = mu_0_T_A_T_Q_bar_B
             self.vec_T_sigma_y_Q_bar_B = vec_T_sigma_y_Q_bar_B
@@ -149,6 +190,7 @@ class CSSolver:
             self.D = D
             self.A_mu_0 = A_mu_0
             self.B = B
+            self.d = d
             self.sigma_N_inv = sigma_N_inv
             self.neg_x_0_T_Q_B = neg_x_0_T_Q_B
             self.d_T_Q_B = d_T_Q_B
@@ -175,7 +217,7 @@ class CSSolver:
         # sigma_y = np.linalg.cholesky(sigma_y)
         # Q_bar = np.eye(n*N)
         # R_bar = np.eye(m*N)
-        x_0 = np.tile(np.array([5, 0, 0, 0, 0, 0, 0, 0]).reshape((-1, 1)), (N, 1))
+        x_0 = np.tile(np.array([8, 0, 0, 0, 0, 0, 0, 0]).reshape((-1, 1)), (N, 1))
 
         self.mu_0_T_A_T_Q_bar_B.setValue(2*np.dot(np.dot(np.dot(mu_0.T, A.T), Q_bar), B))
         temp = 2*np.dot(sigma_y, np.dot(Q_bar, B)).reshape((-1, 1)).T
@@ -205,6 +247,7 @@ class CSSolver:
         self.D.setValue(D)
         self.A_mu_0.setValue((np.dot(A, mu_0)))
         self.B.setValue(B)
+        self.d.setValue(d)
         self.sigma_N_inv.setValue(sigma_N_inv)
         self.neg_x_0_T_Q_B.setValue(2*np.dot(np.dot(-x_0.T, Q_bar), B))
         self.d_T_Q_B.setValue(2*np.dot(np.dot(d.T, Q_bar), B))
@@ -218,9 +261,13 @@ class CSSolver:
         t0 = time.time()
         self.M.solve()
         print((time.time() - t0))
-        levels = (self.V.level(), self.K.level())
-        # print(levels)
-        return levels
+        try:
+            K_level = np.kron(np.eye(self.N), self.k.level().reshape((self.m, self.n)))
+            levels = (self.V.level(), K_level)
+            # print(levels)
+            return levels
+        except SolutionError:
+            raise RuntimeError
 
     def time(self):
         t0 = time.time()
