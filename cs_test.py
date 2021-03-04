@@ -385,7 +385,7 @@ def run_simple_controller():
     n = 8
     m = 2
     l = 8
-    N = 10
+    N = 20
     ar = Model(N)
     x_target = np.tile(np.array([7, 0, 0, 0, 0, 0, 0, 0]).reshape((-1, 1)), (N, 1))
     x = np.array([4., 0., 0., 50., 50., 0.1, 0., 0.]).reshape((8, 1))
@@ -420,15 +420,15 @@ def run_simple_controller():
 
     ks = np.zeros((m*N, n*N, sim_length))
     ss = np.zeros((1, sim_length))
-    dictionary = np.load("Ks1.npy")
-    dictionary = dictionary[()]
+    dictionary = np.load("Ks_lti_20N_7mps.npz")
     ks = dictionary['ks']
     ss = dictionary['ss']
 
-    solver = CSSolver(n, m, l, N, u_min, u_max, mean_only=True)
+    solver = CSSolver(n, m, l, N, u_min, u_max, mean_only=True, lti_k=True)
     solve_process = DummyProcess(target=solver.solve)
     try:
         for ii in range(int(sim_length/1)):
+            t0 = time.time()
             A, B, d = ar.linearize_dynamics(xs, us)
             if B[4, 1] < 0:
                 print(xs, us)
@@ -479,19 +479,10 @@ def run_simple_controller():
             except RuntimeError:
                 V = np.tile(np.array([0, -1]).reshape((-1, 1)), (N, 1)).flatten()
                 K = np.zeros((m*N, n*N))
-            # if ii < 90:
-            #     ks[:, :, ii] = K[:, :]
-            #     ss[0, ii] = state[7, 0]
-            # else:
+            # ks[:, :, ii] = K[:, :]
+            # ss[0, ii] = state[7, 0]
             nearest = np.argmin(np.abs(state[7, 0] - ss[0, :]))
             K = ks[:, :, nearest]
-            # differences = np.zeros((N-1, 1)).flatten()
-            # for ii in range(N):
-            #     k[:, :, ii] = K[ii*m:(ii+1)*m, ii*n:(ii+1)*n]
-            #     if ii > 0:
-            #         differences[ii-1] = np.linalg.norm(k[:, :, ii] - k[:, :, ii-1]) / np.linalg.norm(k[:, :, ii])
-            # ave_dif = np.mean(differences)
-            # print(K)
             us = V.reshape((m, N), order='F')
             us[:, 0] = V[:m]
             t = 0
@@ -527,9 +518,9 @@ def run_simple_controller():
             # X = np.dot(A, x) + np.dot(B, V.reshape((-1, 1)))
             # print(X.reshape((10, 8)))
             #     solver.time()
+            print(time.time() - t0)
         plot(states, controls, sim_length)
-        # dictionary = {'ks': ks, 'ss': ss}
-        # np.save('Ks1', dictionary)
+        # np.savez('Ks_lti_20N_7mps.npz', ks=ks, ss=ss)
     finally:
         solver.M.dispose()
 
