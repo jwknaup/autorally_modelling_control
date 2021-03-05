@@ -128,15 +128,17 @@ class CSSolver:
             # u_o = Matrix.dense(u_oo)
             self.u_o = M.parameter()
             self.u_o.setValue(0.3)
+            self.u_s = M.parameter()
             u_0.setValue(0.5)
             # print(u_0.getValue())
             M.constraint(Expr.sub(self.u_o, V.index(1)), Domain.inRange(-0.2, 0.2))
+            M.constraint(Expr.sub(self.u_s, V.index(0)), Domain.inRange(-0.2, 0.2))
 
             # M.constraint(K.slice([0, 0], [m, n]), Domain.equalsTo(K.slice([m, n], [2*m, 2*n])))
 
             # terminal mean constraint
             mu_N = np.zeros((n, 1))
-            mu_N = np.array([7.5, 2., 2.5, 100., 100., 1., 0.5, 1000.]).reshape((8, 1))
+            mu_N = np.array([7.5, 2., 2.5, 100., 100., 1., 1, 1000.]).reshape((8, 1))
             mu_N = Matrix.dense(mu_N)
             e_n = np.zeros((n, n))
             e_n[4, 4] = 1
@@ -166,7 +168,7 @@ class CSSolver:
                 alpha[6, 0] = -1
                 alpha_T = Matrix.sparse(alpha.T)
                 alpha = Matrix.sparse(alpha)
-                beta = 1
+                beta = 2
                 inv_prob = scipy.stats.norm.ppf(0.95)
                 e_k = np.eye(n)
                 E_k = Matrix.sparse(np.hstack((np.zeros((n, (ii) * n)), e_k, np.zeros((n, (N - ii - 1) * n)))))
@@ -264,6 +266,7 @@ class CSSolver:
         self.d_T_Q_B.setValue(2*np.dot(np.dot(d.T, Q_bar), B))
         u_oo = np.array([[0.1], [0.1]])
         self.u_o.setValue(u_0[1])
+        self.u_s.setValue(u_0[0])
         # self.M.writeTask('dump.opf')
         if self.mean_only:
             self.K.setValue(K)
