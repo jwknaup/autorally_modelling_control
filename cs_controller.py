@@ -29,7 +29,7 @@ class CS_SMPC:
         self.ar = cs_model.Model(self.N)
         self.u_min = np.array([-0.9, -0.9])
         self.u_max = np.array([0.9, 0.9])
-        self.solver = cs_solver.CSSolver(self.n, self.m, self.l, self.N, self.u_min, self.u_max, mean_only=False, lti_k=True)
+        self.solver = cs_solver.CSSolver(self.n, self.m, self.l, self.N, self.u_min, self.u_max, mean_only=True, lti_k=False)
 
         Q = np.zeros((self.n, self.n))
         Q[0, 0] = 3
@@ -39,7 +39,7 @@ class CS_SMPC:
         self.Q_bar = np.kron(np.eye(self.N, dtype=int), Q)
         R = np.zeros((self.m, self.m))
         R[0, 0] = 10  # 2
-        R[1, 1] = 0.001  # 1
+        R[1, 1] = 1  # 1
         self.R_bar = np.kron(np.eye(self.N, dtype=int), R)
         self.x_target = np.tile(np.array([9, 0, 0, 0, 0, 0, 0, 0]).reshape((-1, 1)), (self.N, 1))
 
@@ -105,6 +105,8 @@ class CS_SMPC:
 
     def update_control(self, V, K, X_bar, kk):
         y = self.state.flatten() - X_bar[kk * self.n:(kk + 1) * self.n]
+        if abs(y[7]) > 51.8453:  # need to use absolute s
+            y[7] = 0
         u = V[kk * self.m:(kk + 1) * self.m] + np.dot(K[kk * self.m:(kk + 1) * self.m, kk * self.n:(kk + 1) * self.n], y)
         u = np.where(u > self.u_max, self.u_max, u)
         u = np.where(u < self.u_min, self.u_min, u)
@@ -158,26 +160,26 @@ if __name__ == '__main__':
     # solve.start()
     # solve.join()
     # V, K, X_bar, lin_params = controller.update_solution(controller.state, us, D)
-    ks = np.zeros((2*10, 8*10, 25*10))
-    ss = np.zeros((1, 25*10))
+    ks = np.zeros((2*10, 8*10, 25*20))
+    ss = np.zeros((8, 25*20))
     iii = 0
-    dictionary = np.load("Ks_ltv_10N_7mps.npz")
+    dictionary = np.load("Ks_ltv_10N_9mps.npz")
     ks = dictionary['ks']
     ss = dictionary['ss']
     while not rospy.is_shutdown():
         t0 = time.time()
-        # nearest = np.argmin(np.abs(controller.state[7, 0] - ss[0, :]))
-        # K = ks[:, :, nearest]
+        nearest = np.argmin(np.linalg.norm(controller.state - ss, axis=0))
+        K = ks[:, :, nearest]
         mu_0 = controller.state.copy()
-        V, K, X_bar, lin_params = controller.update_solution(controller.state, us, D)
-        # nearest = np.argmin(np.abs(controller.state[7, 0] - ss[0, :]))
+        V, _K, X_bar, lin_params = controller.update_solution(controller.state, us, D, K=K)
+        # nearest = np.argmin(np.linalg.norm(controller.state[:, 0] - ss[:, :], axis=0))
         # K = ks[:, :, nearest]
         # try:
         #     ks[:, :, iii] = K[:, :]
-        #     ss[0, iii] = controller.state[7, 0]
+        #     ss[:, iii] = controller.state[:, 0]
         #     iii += 1
         # except IndexError:
-        #     np.savez('Ks_ltv_10N_7mps_2.npz', ks=ks, ss=ss)
+        #     np.savez('Ks_ltv_10N_9mps.npz', ks=ks, ss=ss)
         #     break
         # V, K, X_bar, lin_params = solver_io.get()
         us = V.reshape((controller.m, controller.N), order='F')
