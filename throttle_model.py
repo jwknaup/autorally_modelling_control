@@ -122,7 +122,7 @@ def run_model():
 
     N0 = 400
     Nf = -200
-    mat = scipy.io.loadmat('results/ltv testing 2021_02_21 18_57_51.mat')
+    mat = scipy.io.loadmat('results/ltv testing 2021-02-24-19-07-22.mat')
     states = mat['states'][:, ::10]
     controls = mat['inputs'][:, ::10]
     wR = states[4:5, N0:Nf - 1]
@@ -165,7 +165,7 @@ def run_model():
     mat = scipy.io.loadmat('mppi_data/mppi_states_controls3.mat')
     N0 = 377*100
     Nf = -1*100
-    mat = scipy.io.loadmat('results/ltv testing 2021_02_21 18_30_44.mat')
+    mat = scipy.io.loadmat('results/ltv testing 2021-02-24-19-07-22.mat')
     states = mat['states'][:, ::10]
     controls = mat['inputs'][:, ::10]
     wR = states[4:5, N0:Nf - 1]
@@ -226,8 +226,9 @@ def update_dynamics(state, input, nn=None):
     X = state[:, 6]
     Y = state[:, 7]
 
-    m_Vehicle_kSteering = 18.7861
-    m_Vehicle_cSteering = 0.0109
+    m_Vehicle_kSteering = -0.25  # 18.7861
+    m_Vehicle_cSteering = 0.008  # 0.0109
+    throttle_factor = 0.35
     # delta = input[:, 0]
     steering = input[0, 0]
     delta = m_Vehicle_kSteering * steering + m_Vehicle_cSteering
@@ -326,12 +327,12 @@ def add_labels():
 
 def run_full_model():
     dyn_model = Net()
-    dyn_model.load_state_dict(torch.load('throttle_model2.pth'))
+    dyn_model.load_state_dict(torch.load('cs_throttle_model.pth'))
 
-    N0 = 400
-    Nf = -200
+    N0 = 100
+    Nf = -100
 
-    mat = scipy.io.loadmat('mppi_data/mppi_states_controls1.mat')
+    mat = scipy.io.loadmat('results/ltv testing 2021-02-24-19-07-22.mat')
     states = mat['states'][:, ::10].T
     controls = mat['inputs'][:, ::10].T
 

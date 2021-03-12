@@ -138,7 +138,7 @@ class CSSolver:
 
             # terminal mean constraint
             mu_N = np.zeros((n, 1))
-            mu_N = np.array([7.5, 2., 2.5, 100., 100., 1., 1, 1000.]).reshape((8, 1))
+            mu_N = np.array([7.5, 2., 2.5, 100., 100., 0.5, 1.0, 1000.]).reshape((8, 1))
             mu_N = Matrix.dense(mu_N)
             e_n = np.zeros((n, n))
             e_n[4, 4] = 1
@@ -165,7 +165,7 @@ class CSSolver:
             # chance constraint
             for ii in range(N):
                 alpha = np.zeros((n, 1))
-                alpha[6, 0] = -1
+                alpha[6, 0] = 1
                 alpha_T = Matrix.sparse(alpha.T)
                 alpha = Matrix.sparse(alpha)
                 beta = 2
@@ -180,7 +180,8 @@ class CSSolver:
                 M.constraint(Expr.vstack(D_part, Expr.flatten(Expr.mul(alpha_T, Expr.mul(E_k, Expr.mul(Expr.add(I, Expr.mul(B, K)), D)))).slice(0, (ii+1)*l)), Domain.inQCone())
                 cov_part = M.variable()
                 M.constraint(Expr.vstack(cov_part, sigma_0_part, D_part), Domain.inQCone())
-                M.constraint(Expr.add(mean_part, Expr.mul(cov_part, inv_prob)), Domain.lessThan(beta))
+                M.constraint(Expr.add(mean_part, Expr.mul(cov_part, inv_prob)), Domain.inRange(-beta, beta))
+                # M.constraint(Expr.add(mean_part, Expr.mul(cov_part, inv_prob)), Domain.greaterThan(-beta))
                 # else:
                 #     M.constraint(Expr.add(mean_part, cov_part * inv_prob), Domain.lessThan(beta))
                 # M.constraint(mean_part, Domain.lessThan(beta))

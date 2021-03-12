@@ -12,7 +12,7 @@ from multiprocessing.dummy import DummyProcess
 class Model:
     def __init__(self, N):
         self.throttle = throttle_model.Net()
-        self.throttle.load_state_dict(torch.load('cs_throttle_model.pth'))
+        self.throttle.load_state_dict(torch.load('throttle_model1.pth'))
         self.N = N
 
     def get_curvature(self, s):
@@ -74,13 +74,13 @@ class Model:
             wR = np.ones_like(wR) * 1
 
 
-        m_Vehicle_kSteering = 1 # -pi / 180 * 18.7861
-        m_Vehicle_cSteering = 0 # 0.0109
-        throttle_factor = 0.31
+        m_Vehicle_kSteering = -0.24 # -pi / 180 * 18.7861
+        m_Vehicle_cSteering = -0.02 # 0.0109
+        throttle_factor = 0.38
         # delta = input[:, 0]
         steering = input[:, 0]
         delta = m_Vehicle_kSteering * steering + m_Vehicle_cSteering
-        T = input[:, 1]
+        T = np.maximum(input[:, 1], 0)
 
         min_velo = 0.1
         deltaT = 0.01
@@ -385,7 +385,7 @@ def run_simple_controller():
     n = 8
     m = 2
     l = 8
-    N = 20
+    N = 10
     ar = Model(N)
     x_target = np.tile(np.array([7, 0, 0, 0, 0, 0, 0, 0]).reshape((-1, 1)), (N, 1))
     x = np.array([4., 0., 0., 50., 50., 0.1, 0., 0.]).reshape((8, 1))
@@ -414,7 +414,7 @@ def run_simple_controller():
     R_bar = np.kron(np.eye(N, dtype=int), R)
     D = np.zeros((n, l))
 
-    sim_length = 90
+    sim_length = 250
     states = np.zeros((8+3, sim_length))
     controls = np.zeros((2, sim_length))
 
@@ -424,7 +424,7 @@ def run_simple_controller():
     ks = dictionary['ks']
     ss = dictionary['ss']
 
-    solver = CSSolver(n, m, l, N, u_min, u_max, mean_only=True, lti_k=True)
+    solver = CSSolver(n, m, l, N, u_min, u_max, mean_only=False, lti_k=True)
     solve_process = DummyProcess(target=solver.solve)
     try:
         for ii in range(int(sim_length/1)):
@@ -453,9 +453,9 @@ def run_simple_controller():
             A, B, d, D = ar.form_long_matrices_LTV(A, B, d, D)
             # A, B, D = ar.form_long_matrices_LTI(A[:, :, 0], B[:, :, 0], np.zeros((8, 8)))
             # print(np.allclose(A1, A), np.allclose(B1, B))
-            nearest = np.argmin(np.abs(state[7, 0] - ss[0, :]))
-            K = ks[:, :, nearest]
-            solver.populate_params(A, B, d, D, xs[:, 0], sigma_0, sigma_N_inv, Q_bar, R_bar, us[:, 0], x_target, K=K)
+            # nearest = np.argmin(np.abs(state[7, 0] - ss[0, :]))
+            # K = ks[:, :, nearest]
+            solver.populate_params(A, B, d, D, xs[:, 0], sigma_0, sigma_N_inv, Q_bar, R_bar, us[:, 0], x_target)
             # A = np.eye(8)
             # A[0, 0] = 0.5
             # A[0, 4] = 0.5
@@ -481,8 +481,8 @@ def run_simple_controller():
                 K = np.zeros((m*N, n*N))
             # ks[:, :, ii] = K[:, :]
             # ss[0, ii] = state[7, 0]
-            nearest = np.argmin(np.abs(state[7, 0] - ss[0, :]))
-            K = ks[:, :, nearest]
+            # nearest = np.argmin(np.abs(state[7, 0] - ss[0, :]))
+            # K = ks[:, :, nearest]
             us = V.reshape((m, N), order='F')
             us[:, 0] = V[:m]
             t = 0
