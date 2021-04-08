@@ -7,7 +7,7 @@ import throttle_model
 class Model:
     def __init__(self, N):
         self.throttle = throttle_model.Net()
-        self.throttle.load_state_dict(torch.load('cs_throttle_model.pth'))
+        self.throttle.load_state_dict(torch.load('throttle_model1.pth'))
         self.N = N
 
     def get_curvature(self, s):
@@ -60,19 +60,19 @@ class Model:
         Y = state[:, 7]
 
         if (vx < 0.1).any():
-            vx = np.ones_like(vx) * 0.1
+            vx = np.maximum(vx, 0.1)
         if (wF < 1).any():
-            wF = np.ones_like(wF) * 1
+            wF = np.maximum(wF, 1)
         if (wR < 1).any():
-            wR = np.ones_like(wR) * 1
+            wR = np.maximum(wR, 1)
 
-        m_Vehicle_kSteering = -0.3  # -pi / 180 * 18.7861
-        m_Vehicle_cSteering = 0.008  # 0.0109
-        throttle_factor = 0.31
+        m_Vehicle_kSteering = -0.24  # -pi / 180 * 18.7861
+        m_Vehicle_cSteering = -0.02  # 0.0109
+        throttle_factor = 0.38
         # delta = input[:, 0]
         steering = input[:, 0]
         delta = m_Vehicle_kSteering * steering + m_Vehicle_cSteering
-        T = input[:, 1]
+        T = np.maximum(input[:, 1], 0)
 
         min_velo = 0.1
         deltaT = 0.01

@@ -128,15 +128,17 @@ class CSSolver:
             # u_o = Matrix.dense(u_oo)
             self.u_o = M.parameter()
             self.u_o.setValue(0.3)
+            self.u_s = M.parameter()
             u_0.setValue(0.5)
             # print(u_0.getValue())
             M.constraint(Expr.sub(self.u_o, V.index(1)), Domain.inRange(-0.2, 0.2))
+            M.constraint(Expr.sub(self.u_s, V.index(0)), Domain.inRange(-0.2, 0.2))
 
             # M.constraint(K.slice([0, 0], [m, n]), Domain.equalsTo(K.slice([m, n], [2*m, 2*n])))
 
             # terminal mean constraint
             mu_N = np.zeros((n, 1))
-            mu_N = np.array([7.5, 1., 2.5, 100., 100., 0.25, 0.5, 1000.]).reshape((8, 1))
+            mu_N = np.array([7.5, 2., 2.5, 100., 100., 0.5, 1.0, 1000.]).reshape((8, 1))
             mu_N = Matrix.dense(mu_N)
             e_n = np.zeros((n, n))
             e_n[4, 4] = 1
@@ -163,10 +165,10 @@ class CSSolver:
             # chance constraint
             for ii in range(N):
                 alpha = np.zeros((n, 1))
-                alpha[6, 0] = -1
+                alpha[6, 0] = 1
                 alpha_T = Matrix.sparse(alpha.T)
                 alpha = Matrix.sparse(alpha)
-                beta = 1
+                beta = 2
                 inv_prob = scipy.stats.norm.ppf(0.95)
                 e_k = np.eye(n)
                 E_k = Matrix.sparse(np.hstack((np.zeros((n, (ii) * n)), e_k, np.zeros((n, (N - ii - 1) * n)))))
@@ -178,7 +180,8 @@ class CSSolver:
                 M.constraint(Expr.vstack(D_part, Expr.flatten(Expr.mul(alpha_T, Expr.mul(E_k, Expr.mul(Expr.add(I, Expr.mul(B, K)), D)))).slice(0, (ii+1)*l)), Domain.inQCone())
                 cov_part = M.variable()
                 M.constraint(Expr.vstack(cov_part, sigma_0_part, D_part), Domain.inQCone())
-                M.constraint(Expr.add(mean_part, Expr.mul(cov_part, inv_prob)), Domain.lessThan(beta))
+                M.constraint(Expr.add(mean_part, Expr.mul(cov_part, inv_prob)), Domain.inRange(-beta, beta))
+                # M.constraint(Expr.add(mean_part, Expr.mul(cov_part, inv_prob)), Domain.greaterThan(-beta))
                 # else:
                 #     M.constraint(Expr.add(mean_part, cov_part * inv_prob), Domain.lessThan(beta))
                 # M.constraint(mean_part, Domain.lessThan(beta))
@@ -264,6 +267,7 @@ class CSSolver:
         self.d_T_Q_B.setValue(2*np.dot(np.dot(d.T, Q_bar), B))
         u_oo = np.array([[0.1], [0.1]])
         self.u_o.setValue(u_0[1])
+        self.u_s.setValue(u_0[0])
         # self.M.writeTask('dump.opf')
         if self.mean_only:
             self.K.setValue(K)

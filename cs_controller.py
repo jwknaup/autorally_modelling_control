@@ -15,7 +15,7 @@ class CS_SMPC:
     def __init__(self):
         rospy.init_node('cs_smpc')
         rospy.Subscriber("/MAP_CA/mapCA", mapCA, self.map_callback)
-        self.command_pub = rospy.Publisher("/LTVMPC/chassisCommand", chassisCommand, queue_size=1)
+        self.command_pub = rospy.Publisher("/CSSMPC/chassisCommand", chassisCommand, queue_size=1)
         self.chassis_command = chassisCommand()
         self.begin = 0
 
@@ -24,23 +24,24 @@ class CS_SMPC:
         self.l = 8
         self.N = 10
         self.dt_linearization = 0.1
-        self.dt_solve = 0.5
+        self.dt_solve = 0.1
 
         self.ar = cs_model.Model(self.N)
-        self.u_min = np.array([-0.95, 0.0])
-        self.u_max = np.array([0.95, 0.95])
-        self.solver = cs_solver.CSSolver(self.n, self.m, self.l, self.N, self.u_min, self.u_max)
+        self.u_min = np.array([-0.9, -0.9])
+        self.u_max = np.array([0.9, 0.9])
+        self.solver = cs_solver.CSSolver(self.n, self.m, self.l, self.N, self.u_min, self.u_max, mean_only=True, lti_k=False)
 
         Q = np.zeros((self.n, self.n))
         Q[0, 0] = 3
-        Q[1, 1] = 0
+        Q[1, 1] = 1
         Q[5, 5] = 10
         Q[6, 6] = 10
         self.Q_bar = np.kron(np.eye(self.N, dtype=int), Q)
         R = np.zeros((self.m, self.m))
-        R[0, 0] = 3
-        R[1, 1] = 0.01
+        R[0, 0] = 10  # 2
+        R[1, 1] = 1  # 1
         self.R_bar = np.kron(np.eye(self.N, dtype=int), R)
+        self.x_target = np.tile(np.array([9, 0, 0, 0, 0, 0, 0, 0]).reshape((-1, 1)), (self.N, 1))
 
         self.state = np.zeros((self.n, 1))  # np.array([5, 0, 0, 50, 50, 0, 0, 0])
         self.control = np.zeros((self.m, 1))
@@ -52,7 +53,11 @@ class CS_SMPC:
         vy = map_msg.vy
         wz = map_msg.wz
         wF = map_msg.wf / vehicle_rF
+        if wF > 100:
+            wF = 100
         wR = map_msg.wr / vehicle_rR
+        if wR > 100:
+            wR = 100
         epsi = map_msg.epsi
         ey = map_msg.ey
         s = map_msg.s
@@ -73,8 +78,8 @@ class CS_SMPC:
             # print(x_0, us, xs)
         return xs
 
-    def update_solution(self, queue):
-        x_0, us, D = queue.get()
+    def update_solution(self, x_0, us, D, K=None):
+        # x_0, us, D = queue
         xs = self.roll_out_trajectory(x_0, us, self.N)
         A, B, d = self.ar.linearize_dynamics(xs, us)
         A = A.reshape((self.n, self.n, self.N), order='F')
@@ -84,15 +89,25 @@ class CS_SMPC:
         A, B, d, D = self.ar.form_long_matrices_LTV(A, B, d, D)
         sigma_0 = np.zeros((self.n, self.n))
         sigma_N_inv = np.zeros((self.n, self.n))
-        self.solver.populate_params(A, B, d, D, xs[:, 0], sigma_0, sigma_N_inv, self.Q_bar, self.R_bar, us[:, 0])
-        V, K = self.solver.solve()
-        K = K.reshape((self.m * self.N, self.n * self.N))
+        self.solver.populate_params(A, B, d, D, xs[:, 0], sigma_0, sigma_N_inv, self.Q_bar, self.R_bar, us[:, 0], self.x_target, K=K)
+        try:
+            V, K = self.solver.solve()
+            K = K.reshape((self.m * self.N, self.n * self.N))
+        except RuntimeError:
+            V = np.tile(np.array([0, -1]).reshape((-1, 1)), (self.N, 1)).flatten()
+            K = np.zeros((self.m * self.N, self.n * self.N))
+        finally:
+            # print(x_0, us, D, K)
+            pass
         X_bar = np.dot(A, xs[:, 0]) + np.dot(B, V) + d.flatten()
-        queue.put((V, K, X_bar, (A, B, d)))
+        # queue.put((V, K, X_bar, (A, B, d)))
+        return V, K, X_bar, (A, B, d)
 
     def update_control(self, V, K, X_bar, kk):
         y = self.state.flatten() - X_bar[kk * self.n:(kk + 1) * self.n]
-        u = V[kk * self.m:(kk + 1) * self.m] #+ np.dot(K[kk * self.m:(kk + 1) * self.m, kk * self.n:(kk + 1) * self.n], y)
+        if abs(y[7]) > 51.8453:  # need to use absolute s
+            y[7] = 0
+        u = V[kk * self.m:(kk + 1) * self.m] + np.dot(K[kk * self.m:(kk + 1) * self.m, kk * self.n:(kk + 1) * self.n], y)
         u = np.where(u > self.u_max, self.u_max, u)
         u = np.where(u < self.u_min, self.u_min, u)
         print(u)
@@ -128,10 +143,10 @@ class CS_SMPC:
 
 if __name__ == '__main__':
     controller = CS_SMPC()
-    controller.ltv_solver = cs_solver.CSSolver(controller.n, controller.m, controller.l, controller.N, controller.u_min, controller.u_max, mean_only=True)
+    # controller.ltv_solver = cs_solver.CSSolver(controller.n, controller.m, controller.l, controller.N, controller.u_min, controller.u_max, mean_only=True)
     num_steps_applied = int(controller.dt_solve / controller.dt_linearization)
-    solver_io = Queue(maxsize=1)
-    ltv_io = MQ()
+    # solver_io = Queue(maxsize=1)
+    # ltv_io = MQ()
     dt_control = 0.02
     control_update_rate = rospy.Rate(1/dt_control)
     linearization_step_rate = rospy.Rate(1/controller.dt_linearization)
@@ -140,44 +155,60 @@ if __name__ == '__main__':
     while not controller.begin and not rospy.is_shutdown():
         rospy.sleep(0.1)
     D = np.zeros((controller.n, controller.l))
-    solver_io.put((controller.state, us, D))
-    solve = DummyProcess(target=controller.update_solution, args=(solver_io,))
-    solve.start()
-    solve.join()
+    # solver_io.put((controller.state, us, D))
+    # solve = DummyProcess(target=controller.update_solution, args=(solver_io,))
+    # solve.start()
+    # solve.join()
+    # V, K, X_bar, lin_params = controller.update_solution(controller.state, us, D)
+    ks = np.zeros((2*10, 8*10, 25*20))
+    ss = np.zeros((8, 25*20))
+    iii = 0
+    dictionary = np.load("Ks_ltv_10N_9mps.npz")
+    ks = dictionary['ks']
+    ss = dictionary['ss']
     while not rospy.is_shutdown():
         t0 = time.time()
-        V, K, X_bar, lin_params = solver_io.get()
+        nearest = np.argmin(np.linalg.norm(controller.state - ss, axis=0))
+        K = ks[:, :, nearest]
+        mu_0 = controller.state.copy()
+        V, _K, X_bar, lin_params = controller.update_solution(controller.state, us, D, K=K)
+        # nearest = np.argmin(np.linalg.norm(controller.state[:, 0] - ss[:, :], axis=0))
+        # K = ks[:, :, nearest]
+        # try:
+        #     ks[:, :, iii] = K[:, :]
+        #     ss[:, iii] = controller.state[:, 0]
+        #     iii += 1
+        # except IndexError:
+        #     np.savez('Ks_ltv_10N_9mps.npz', ks=ks, ss=ss)
+        #     break
+        # V, K, X_bar, lin_params = solver_io.get()
         us = V.reshape((controller.m, controller.N), order='F')
-        predicted_x_0 = controller.roll_out_trajectory(controller.state, us, num_steps_applied + 1, lin=lin_params)[:, -1].reshape((-1, 1))
-        print(controller.state, us, predicted_x_0)
-        us = np.hstack((us[:, num_steps_applied:], np.tile(us[:, -1].reshape((-1, 1)), (1, num_steps_applied))))
-        solver_io.put((predicted_x_0, us, D))
-        solve = DummyProcess(target=controller.update_solution, args=(solver_io,))
+        # predicted_x_0 = controller.roll_out_trajectory(controller.state, us, num_steps_applied + 1, lin=lin_params)[:, -1].reshape((-1, 1))
+        # print(controller.state, us, predicted_x_0)
+        # us = np.hstack((us[:, num_steps_applied:], np.tile(us[:, -1].reshape((-1, 1)), (1, num_steps_applied))))
+        # solver_io.put((predicted_x_0, us, D))
+        # solve = DummyProcess(target=controller.update_solution, args=(solver_io,))
         print('setup time:', time.time() - t0)
-        ltv_sys = lin_params
+        # ltv_sys = lin_params
         for ii in range(num_steps_applied):
-            ltv_io.put((controller.state, V, ltv_sys))
+            # ltv_io.put((controller.state, V, ltv_sys))
             t1 = time.time()
-            ltv = Process(target=controller.ltv_solve, args=(ltv_io,))
-            ltv.start()
-            if ii == 0:
-                solve.start()
+            # ltv = Process(target=controller.ltv_solve, args=(ltv_io,))
+            # ltv.start()
+            # if ii == 0:
+            #     solve.start()
             # controller.ltv_solve(ltv_io)
-            for jj in range(int(controller.dt_linearization / dt_control)):
-                y = controller.update_control(V, K, X_bar, ii)
-                control_update_rate.sleep()
+            # for jj in range(int(controller.dt_linearization / dt_control)):
+            y = controller.update_control(V, K, X_bar, ii)
+                # control_update_rate.sleep()
                 # if ii == 1 and jj == 0:
-                #     D = np.diag(y)
+            D = np.diag(y)
             # ltv.join()
             print('ltv time:', time.time() - t1)
-            ltv_sys = ltv_io.get()
-            A, B, d, script_D = ltv_sys
-            ltv_sys = (A, B, d)
-            controller.ltv_solver.populate_params(A, B, d, script_D, controller.state, np.zeros((controller.n, controller.n)), np.zeros((controller.n, controller.n)), controller.Q_bar, controller.R_bar,
-                                            V[:controller.m])
-            V, _ = controller.ltv_solver.solve()
+            # ltv_sys = ltv_io.get()
+            # A, B, d, script_D = ltv_sys
+            # ltv_sys = (A, B, d)
+            # controller.ltv_solver.populate_params(A, B, d, script_D, controller.state, np.zeros((controller.n, controller.n)), np.zeros((controller.n, controller.n)), controller.Q_bar, controller.R_bar,
+            #                                 V[:controller.m])
+            # V, _ = controller.ltv_solver.solve()
             # linearization_step_rate.sleep()
-
-
-
-
