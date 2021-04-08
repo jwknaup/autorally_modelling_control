@@ -67,13 +67,13 @@ class Model:
         Y = state[:, 7]
 
         if (vx < 0.1).any():
-            vx = np.ones_like(vx) * 0.1
+            vx = np.maximum(vx, 0.1)
         if (wF < 1).any():
-            wF = np.ones_like(wF) * 1
+            wF = np.maximum(wF, 1)
         if (wR < 1).any():
-            wR = np.ones_like(wR) * 1
+            wR = np.maximum(wR, 1)
 
-
+        m_Vehicle_kSteering = -0.24 # -pi / 180 * 18.7861
         m_Vehicle_kSteering = -0.24 # -pi / 180 * 18.7861
         m_Vehicle_cSteering = -0.02 # 0.0109
         throttle_factor = 0.38
@@ -387,7 +387,7 @@ def run_simple_controller():
     l = 8
     N = 10
     ar = Model(N)
-    x_target = np.tile(np.array([7, 0, 0, 0, 0, 0, 0, 0]).reshape((-1, 1)), (N, 1))
+    x_target = np.tile(np.array([10, 0, 0, 0, 0, 0, 0, 0]).reshape((-1, 1)), (N, 1))
     x = np.array([4., 0., 0., 50., 50., 0.1, 0., 0.]).reshape((8, 1))
     state = x.copy()
     cartesian = np.array([-0.6613+0.1, 2.78-3.25, -2.97+2.3]).reshape((-1, 1))
@@ -421,8 +421,8 @@ def run_simple_controller():
     ks = np.zeros((m*N, n*N, sim_length))
     ss = np.zeros((1, sim_length))
     dictionary = np.load("Ks_lti_20N_7mps.npz")
-    ks = dictionary['ks']
-    ss = dictionary['ss']
+    # ks = dictionary['ks']
+    # ss = dictionary['ss']
 
     solver = CSSolver(n, m, l, N, u_min, u_max, mean_only=False, lti_k=True)
     solve_process = DummyProcess(target=solver.solve)

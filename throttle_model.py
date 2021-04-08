@@ -97,8 +97,8 @@ def run_model():
     dyn_model = Net()
     dyn_model.load_state_dict(torch.load('throttle_model1.pth'))
 
-    N0 = 7900
-    Nf = 16590
+    N0 = 0
+    Nf = -1
     mat = scipy.io.loadmat('throttle_id/transient and braking.mat')
     throttle = mat['throttle'][N0:Nf].T
     dx, N1 = throttle.shape
@@ -115,7 +115,7 @@ def run_model():
     plt.figure()
     plt.plot(time, wR[0,:])
     plt.plot(time, nn_states)
-    # plt.plot(time, throttle.T)
+    plt.plot(time, 100*throttle.T)
     plt.xlabel('time')
     plt.ylabel('wR (rad/s)')
     plt.show()
@@ -163,7 +163,7 @@ def run_model():
     N0 = 400
     Nf = -200
     mat = scipy.io.loadmat('mppi_data/mppi_states_controls3.mat')
-    N0 = 377*100
+    N0 = 1*100
     Nf = -1*100
     mat = scipy.io.loadmat('results/ltv testing 2021-02-24-19-07-22.mat')
     states = mat['states'][:, ::10]
@@ -226,9 +226,9 @@ def update_dynamics(state, input, nn=None):
     X = state[:, 6]
     Y = state[:, 7]
 
-    m_Vehicle_kSteering = -0.25  # 18.7861
-    m_Vehicle_cSteering = 0.008  # 0.0109
-    throttle_factor = 0.35
+    m_Vehicle_kSteering = -0.24
+    m_Vehicle_cSteering = -0.010
+    throttle_factor = 0.38
     # delta = input[:, 0]
     steering = input[0, 0]
     delta = m_Vehicle_kSteering * steering + m_Vehicle_cSteering
@@ -279,7 +279,7 @@ def update_dynamics(state, input, nn=None):
     next_state[:, 2] = wz + deltaT * (
                 (fFy * cos(delta) + fFx * sin(delta)) * m_Vehicle_lF - fRy * m_Vehicle_lR) / m_Vehicle_Iz
     next_state[:, 3] = wF - deltaT * m_Vehicle_rF / m_Vehicle_IwF * fFx
-    input_tensor = torch.from_numpy(np.hstack((T, wR))).float()
+    input_tensor = torch.from_numpy(np.hstack((T, wR / throttle_factor))).float()
     next_state[:, 4] = wR + deltaT * (nn(input_tensor).detach().numpy())
     next_state[:, 5] = psi + deltaT * wz
     next_state[:, 6] = X + deltaT * dot_X
@@ -292,45 +292,49 @@ def update_dynamics(state, input, nn=None):
 
 def add_labels():
     plt.subplot(4, 2, 1)
-    plt.gca().legend(('Measured vx', 'Pacejka vx', 'NN vx'))
+    plt.gca().legend(('Measured vx', 'Model vx', 'NN vx'))
     plt.xlabel('t (s)')
     plt.ylabel('m/s')
     plt.subplot(4, 2, 2)
-    plt.gca().legend(('Measured vy', 'Pacejka vy', 'NN vy'))
+    plt.gca().legend(('Measured vy', 'Model vy', 'NN vy'))
     plt.xlabel('t (s)')
     plt.ylabel('m/s')
     plt.subplot(4, 2, 3)
-    plt.gca().legend(('Measured wz', 'Pacejka wz', 'NN wz'))
+    plt.gca().legend(('Measured wz', 'Model wz', 'NN wz'))
     plt.xlabel('t (s)')
     plt.ylabel('rad/s')
     plt.subplot(4, 2, 4)
-    plt.gca().legend(('Measured wF', 'Pacejka wF', 'NN wF'))
+    plt.gca().legend(('Measured wF', 'Model wF', 'NN wF'))
     plt.xlabel('t (s)')
     plt.ylabel('rad/s')
     plt.subplot(4, 2, 5)
-    plt.gca().legend(('Measured wR', 'Pacejka wR', 'NN wF'))
+    plt.gca().legend(('Measured wR', 'Model wR', 'NN wF'))
     plt.xlabel('t (s)')
     plt.ylabel('rad/s')
     plt.subplot(4, 2, 6)
-    plt.gca().legend(('Measured Yaw', 'Pacejka Yaw', 'NN Yaw'))
+    plt.gca().legend(('Measured Yaw', 'Model Yaw', 'NN Yaw'))
     plt.xlabel('t (s)')
     plt.ylabel('rad')
     plt.subplot(4, 2, 7)
-    plt.gca().legend(('Measured X', 'Pacejka X', 'NN X'))
+    plt.gca().legend(('Measured X', 'Model X', 'NN X'))
     plt.xlabel('t (s)')
     plt.ylabel('m')
     plt.subplot(4, 2, 8)
-    plt.gca().legend(('Measured Y', 'Pacejka Y', 'NN Y'))
+    plt.gca().legend(('Measured Y', 'Model Y', 'NN Y'))
     plt.xlabel('t (s)')
     plt.ylabel('m')
 
 
 def run_full_model():
     dyn_model = Net()
-    dyn_model.load_state_dict(torch.load('cs_throttle_model.pth'))
+    dyn_model.load_state_dict(torch.load('throttle_model1.pth'))
 
-    N0 = 100
-    Nf = -100
+    N0 = 45*100
+    Nf = -5 * 100
+
+    mat = scipy.io.loadmat('results/ltv testing 2021_02_21 18_57_51.mat')
+    N0 = 5 * 100
+    Nf = -10 * 100
 
     mat = scipy.io.loadmat('results/ltv testing 2021-02-24-19-07-22.mat')
     states = mat['states'][:, ::10].T
@@ -345,7 +349,7 @@ def run_full_model():
     # # forces = mat['ff'][6:, N0:Nf].T
 
     states = states[N0:Nf-1, :]
-    controls = controls[N0:Nf-1, :]
+    controls = np.hstack((controls[N0-11:Nf-1-11, 0:1], controls[N0:Nf-1, 1:2]))
     print(controls.shape)
     time = np.arange(0, len(states)) * 0.01
     analytic_states = np.zeros_like(states)
@@ -393,6 +397,6 @@ def trace_model():
 
 if __name__ == '__main__':
     # train_model()
-    run_model()
-    # run_full_model()
+    # run_model()
+    run_full_model()
     # trace_model()
