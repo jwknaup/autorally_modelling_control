@@ -136,7 +136,7 @@ class CSSolver:
 
             # terminal mean constraint
             mu_N = np.zeros((n, 1))
-            mu_N = np.array([7.5, 2., 2.5, 100., 100., 1., 0.5, 1000.]).reshape((8, 1))
+            mu_N = np.array([7.5, 1., 2.5, 100., 100., 0.25, 0.5, 1000.]).reshape((8, 1))
             mu_N = Matrix.dense(mu_N)
             e_n = np.zeros((n, n))
             e_n[4, 4] = 1
