@@ -23,10 +23,10 @@ def reorder_points(pts):
 
 def generate_init_trajectory(img):
     thresh = 5
-    pts = np.where(img < thresh)
-    # plt.plot(pts[1], pts[0])
-    # plt.imshow(img, cmap='gray')
-    # plt.show()
+    pts = np.where(img[:, :, 3] < thresh)
+    plt.plot(pts[1], pts[0])
+    plt.imshow(img, cmap='gray')
+    plt.show()
     pts = reorder_points(np.hstack((pts[1].reshape((-1, 1)), pts[0].reshape((-1, 1)))))
     # plt.plot(pts[:, 0], pts[:, 1])
     # plt.imshow(img, cmap='gray')
@@ -36,25 +36,39 @@ def generate_init_trajectory(img):
 
 class MyQpSmooth(qpSmooth.QpSmooth):
 
-    def __init__(self, init_pts, img):
+    def __init__(self, init_pts, inner, outer, img):
         super().__init__(init_pts)
         self.img = img
+        self.inner = inner
+        self.outer = outer
 
     def checkTrackBoundary(self, coord, n, delta_max):
-        delta_max = 50
+        print(coord, n)
+        delta_max = 2
         thresh = 100
         buffer = 2
+        res = 0.01
         angle = np.arctan2(n[1], n[0])
         coord = np.array([coord[0], coord[1]])
         n = np.array([n[0], n[1]])
-        for F in range(delta_max):
-            pt = (coord + (F + buffer) * n).astype(int)
-            if self.img[pt[1], pt[0]] > thresh:
+        F, R = 0, 0
+        for F in np.arange(start=0, stop=delta_max, step=res):
+            pt = (coord + (F) * n).reshape((2, 1))
+            # print(pt.shape)
+            dist_inner = np.min(np.linalg.norm(pt - self.inner, axis=0))
+            dist_outer = np.min(np.linalg.norm(pt - self.outer, axis=0))
+            dist = min(dist_inner, dist_outer)
+            if dist < thresh:
                 break
-        for R in range(delta_max):
-            pt = (coord - (R + buffer) * n).astype(int)
-            if self.img[pt[1], pt[0]] > thresh:
+        for R in np.arange(start=0, stop=delta_max, step=res):
+            pt = (coord - (R) * n).reshape((2, 1))
+            # print(np.linalg.norm(pt - self.outer).shape)
+            dist_inner = np.min(np.linalg.norm(pt - self.inner, axis=0))
+            dist_outer = np.min(np.linalg.norm(pt - self.outer, axis=0))
+            dist = min(dist_inner, dist_outer)
+            if dist < thresh:
                 break
+        print(F, R)
         return F, R
 
     def drawRaceline(self, lineColor=(0,0,255), img=None):
@@ -65,24 +79,25 @@ class MyQpSmooth(qpSmooth.QpSmooth):
         # print(xy.shape)
         x_new = xy[:,0]
         y_new = xy[:,1]
-        plt.imshow(self.img, cmap='gray')
         plt.plot(x_new, y_new, 'c')
+        plt.plot(self.inner[0, :], self.inner[1, :], 'k')
+        plt.plot(self.outer[0, :], self.outer[1, :], 'k')
         plt.show()
-        plt.imshow(self.img, cmap='gray')
         plt.plot(self.break_pts[:, 0], self.break_pts[:, 1])
+        plt.plot(self.inner[0, :], self.inner[1, :], 'k')
+        plt.plot(self.outer[0, :], self.outer[1, :], 'k')
         plt.show()
 
 
 if __name__ == '__main__':
-    filename = 'mining_loop_lores.pgm'
+    file_name = 'CCRF_2021-01-10.npz'
+    track_dict = np.load(file_name)
+    centerline = np.vstack([track_dict['X_cen_smooth'], track_dict['Y_cen_smooth']])
+    inner = np.vstack((track_dict['X_in'], track_dict['Y_in']))
+    outer = np.vstack((track_dict['X_out'], track_dict['Y_out']))
 
-    im = Image.open(filename)
-    img = np.asarray(im)
-    # im.show()
-    # print(im)
-
-    pts = generate_init_trajectory(img)
-    qp = MyQpSmooth(pts, img)
+    pts = centerline.T
+    qp = MyQpSmooth(pts, inner, outer, None)
     val = qp.optimizePath()
     K, C, Ds = qp.curvatureJac()
     print(qp.break_pts.shape)
@@ -92,4 +107,10 @@ if __name__ == '__main__':
     dif_vecs = qp.break_pts[1:, :] - qp.break_pts[:-1, :]
     s = np.cumsum(np.linalg.norm(dif_vecs, axis=1))
     print(s.shape)
-    np.savez('mining_loop_lores.npz', pts=qp.break_pts, curvature=K, s=s)
+    for ii in range(len(s)):
+        print(s[ii], K[ii])
+    plt.scatter(qp.break_pts[:, 0], qp.break_pts[:, 1], c=K, marker='.')
+    plt.plot(inner[0, :], inner[1, :], 'k')
+    plt.plot(outer[0, :], outer[1, :], 'k')
+    plt.show()
+    np.savez('ccrf_track_curvature.npz', pts=qp.break_pts, curvature=K, s=s)

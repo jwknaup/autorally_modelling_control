@@ -723,6 +723,9 @@ class QpSmooth:
         N = len(self.break_pts)
         self.raceline_fun = lambda u:self.evalBezierSpline(P,u)
 
+        plt.plot(self.break_pts[:, 0], self.break_pts[:, 1])
+        plt.show()
+
         '''
         print("showing initial raceline AFTER resampling")
         img_track = self.drawTrack()
@@ -746,7 +749,7 @@ class QpSmooth:
         plt.show()
 
         # re-sample path, get more break points
-        new_N = len(self.break_pts)*3
+        new_N = int(len(self.break_pts)*0.33)
         print_info("Had %d break points, resample to %d"%(len(self.break_pts),new_N))
         self.resamplePath(new_N)
 
@@ -796,6 +799,7 @@ class QpSmooth:
             delta_max = 5e-2
             for i in range(N):
                 coord = self.break_pts[i]
+                # print(coord)
                 F,R = self.checkTrackBoundary(coord,self.n[i],delta_max)
                 h1.append(F)
                 h2.append(R)
