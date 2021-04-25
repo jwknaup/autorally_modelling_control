@@ -418,9 +418,9 @@ def run_simple_controller():
     states = np.zeros((8+3, sim_length))
     controls = np.zeros((2, sim_length))
 
-    ks = np.zeros((m*N, n*N, sim_length))
-    ss = np.zeros((1, sim_length))
-    dictionary = np.load("Ks_lti_20N_7mps.npz")
+    # ks = np.zeros((m*N, n*N, sim_length))
+    # ss = np.zeros((1, sim_length))
+    # dictionary = np.load("Ks_lti_20N_7mps.npz")
     # ks = dictionary['ks']
     # ss = dictionary['ss']
 
