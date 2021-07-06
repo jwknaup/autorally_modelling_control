@@ -43,10 +43,9 @@ class MyQpSmooth(qpSmooth.QpSmooth):
         self.outer = outer
 
     def checkTrackBoundary(self, coord, n, delta_max):
-        print(coord, n)
+        # print(coord, n)
         delta_max = 2
-        thresh = 100
-        buffer = 2
+        thresh = 1
         res = 0.01
         angle = np.arctan2(n[1], n[0])
         coord = np.array([coord[0], coord[1]])
@@ -68,7 +67,7 @@ class MyQpSmooth(qpSmooth.QpSmooth):
             dist = min(dist_inner, dist_outer)
             if dist < thresh:
                 break
-        print(F, R)
+        # print(F, R)
         return F, R
 
     def drawRaceline(self, lineColor=(0,0,255), img=None):
