@@ -108,8 +108,8 @@ if __name__ == '__main__':
     print(s.shape)
     for ii in range(len(s)):
         print(s[ii], K[ii])
-    plt.scatter(qp.break_pts[:, 0], qp.break_pts[:, 1], c=K, marker='.')
-    plt.plot(inner[0, :], inner[1, :], 'k')
-    plt.plot(outer[0, :], outer[1, :], 'k')
-    plt.show()
-    np.savez('ccrf_track_curvature.npz', pts=qp.break_pts, curvature=K, s=s)
+    # plt.scatter(qp.break_pts[:, 0], qp.break_pts[:, 1], c=K, marker='.')
+    # plt.plot(inner[0, :], inner[1, :], 'k')
+    # plt.plot(outer[0, :], outer[1, :], 'k')
+    # plt.show()
+    np.savez('ccrf_track_optimal.npz', pts=qp.break_pts, curvature=K, s=s)

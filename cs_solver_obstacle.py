@@ -8,13 +8,15 @@ import time
 
 
 class CSSolver:
-    def __init__(self, n, m, l, N, v_range, slew_rate, obstacles, mean_only=False, k_form=0):
+    def __init__(self, n, m, l, N, v_range, slew_rate, obstacles, mean_only=False, k_form=0, prob_lvl=0.95, chance_const_N=-1):
         try:
             M = Model()
             self.n = n
             self.m = m
             self.l = l
             self.N = N
+            if chance_const_N < 0:
+                chance_const_N = N
 
             v_min = v_range[:, 0]
             v_max = v_range[:, 1]
@@ -105,11 +107,14 @@ class CSSolver:
             # sigma_y_half = M.parameter([n*N, n*N])
             A_sigma_0_half = M.parameter([n*N, n])
             pattern = []
-            for ii in range(N):
-                for jj in range(n):
-                    for kk in range(l*(ii+1)):
-                        pattern.append([jj + n * ii, kk])
-            D = M.parameter([n*N, l*N], pattern)
+            for ii in range(n * N):
+                for jj in range(l * N):
+                    row = ii
+                    col = jj
+                    pattern.append([row, col])
+                    if jj >= l * (ii + 1):
+                        break
+            D = M.parameter([n*N, l*N])
             A_mu_0 = M.parameter([n*N, 1])
             pattern = []
             for ii in range(n * N):
@@ -119,13 +124,16 @@ class CSSolver:
                     pattern.append([row, col])
                     if jj >= m * (ii + 1):
                         break
-            B = M.parameter([n*N, m*N], pattern)
+            B = M.parameter([n*N, m*N])
             d = M.parameter([n*N, 1])
             sigma_N_inv = M.parameter([n, n])
             neg_x_0_T_Q_B = M.parameter([1, m*N])
             d_T_Q_B = M.parameter([1, m*N])
+            if mean_only:
+                covariance_chance_constraints = M.parameter([N, 2])
 
             I = Matrix.eye(n*N)
+            inv_prob = scipy.stats.norm.ppf(prob_lvl)
 
             # convert to linear objective with quadratic cone constraints
             u = Expr.mul(mu_0_T_A_T_Q_bar_B, V)
@@ -133,8 +141,10 @@ class CSSolver:
             q = Expr.mul(neg_x_0_T_Q_B, V)
             r = Expr.mul(d_T_Q_B, V)
             # v = Expr.mul(vec_T_sigma_y_Q_bar_B, Expr.flatten(K))
+            zz = M.variable("zz", 1, Domain.unbounded())
+            M.constraint(Expr.vstack(0.5, zz, Expr.mul(1, Expr.sub(V.slice(2, N*m), V.slice(0, N*m-2)))), Domain.inRotatedQCone())
             if not mean_only:
-                M.objective(ObjectiveSense.Minimize, Expr.add([q, r, u, w, x, y1, y2, z1, z2]))
+                M.objective(ObjectiveSense.Minimize, Expr.add([q, r, u, w, x, y1, y2, z1, z2, zz]))
                 M.constraint(Expr.vstack(0.5, w, Expr.mul(Q_bar_half_B, V)), Domain.inRotatedQCone())
                 M.constraint(Expr.vstack(0.5, x, Expr.mul(R_bar_half, V)), Domain.inRotatedQCone())
 
@@ -144,12 +154,12 @@ class CSSolver:
                 M.constraint(Expr.vstack(0.5, z1, Expr.flatten(Expr.mul(R_bar_half, Expr.mul(K, A_sigma_0_half)))), Domain.inRotatedQCone())
                 M.constraint(Expr.vstack(0.5, z2, Expr.flatten(Expr.mul(R_bar_half, Expr.mul(K, D)))), Domain.inRotatedQCone())
             else:
-                M.objective(ObjectiveSense.Minimize, Expr.add([q, r, u, w, x]))
+                M.objective(ObjectiveSense.Minimize, Expr.add([q, r, u, w, x, zz]))
                 M.constraint(Expr.vstack(0.5, w, Expr.mul(Q_bar_half_B, V)), Domain.inRotatedQCone())
                 M.constraint(Expr.vstack(0.5, x, Expr.mul(R_bar_half, V)), Domain.inRotatedQCone())
 
             # slew-rate constraints
-            M.constraint(Expr.sub(V.slice(2, N*m), V.slice(0, N*m-2)), Domain.inRange(np.tile(slew_rate[:, 0], N-1), np.tile(slew_rate[:,  1], N-1)))
+            # M.constraint(Expr.sub(V.slice(2, N*m), V.slice(0, N*m-2)), Domain.inRange(np.tile(slew_rate[:, 0], N-1), np.tile(slew_rate[:,  1], N-1)))
             self.u_steering = M.parameter()
             self.u_throttle = M.parameter()
             M.constraint(Expr.sub(self.u_throttle, V.index(1)), Domain.inRange(slew_rate[1, 0], slew_rate[1, 1]))
@@ -171,45 +181,105 @@ class CSSolver:
             E_N_T = Matrix.sparse(np.hstack((np.zeros((n, (N - 1) * n)), np.eye(n))).T)
             M.constraint(Expr.sub(Expr.mul(E_N, Expr.add(Expr.add(A_mu_0, Expr.mul(B, V)), d)), mu_N), Domain.lessThan(0))
 
-            if obstacles:
-                pass
+            if obstacles[0]:
+                self.obs = M.parameter(obstacles[1])
+                num_obs = int(obstacles[1] / N / 4)
+                z = M.variable("z", [4, N, num_obs], Domain.integral(Domain.inRange(0, 1)))
+                M.constraint(Expr.sum(z.asExpr(), 0), Domain.equalsTo(3))
+                # alpha = Matrix.sparse(np.array([[1, 0], [-1, 0], [0, 1], [0, -1]]))
+                X = Expr.add(Expr.add(A_mu_0, Expr.mul(B, V)), d)
+                x_matrix = np.zeros((N, n * N))
+                for ii in range(N):
+                    x_matrix[ii, ii * n + 6] = 1
+                y_matrix = np.zeros((N, n * N))
+                for ii in range(N):
+                    y_matrix[ii, ii * n + 7] = 1
+                xs = Expr.mul(Matrix.sparse(x_matrix), X)
+                ys = Expr.mul(Matrix.sparse(y_matrix), X)
+                gamma = 100
+                # print(Expr.flatten(z.slice([0, 0], [1, N])).getShape(), xs.getShape())
+
+                for ii in range(num_obs):
+                    x_min = self.obs.slice([ii*4*N], [ii*4*N+N])
+                    x_max = self.obs.slice([ii*4*N+N], [ii*4*N+2*N])
+                    y_min = self.obs.slice([ii*4*N+2*N], [ii*4*N+3*N])
+                    y_max = self.obs.slice([ii*4*N+3*N], [ii*4*N+4*N])
+
+                    if mean_only:
+                        x_cov = covariance_chance_constraints.slice([0, 0], [N, 1])
+                        y_cov = covariance_chance_constraints.slice([0, 1], [N, 2])
+                        M.constraint(
+                            Expr.sub(Expr.flatten(Expr.add(Expr.mul(Expr.flatten(z.slice([0, 0, ii], [1, N, ii+1])), -gamma), Expr.add(Expr.flatten(xs), Expr.mul(x_cov, Expr.constTerm(inv_prob))))),
+                                     Expr.flatten(x_min)),
+                            Domain.lessThan(0))
+                        M.constraint(
+                            Expr.sub(Expr.flatten(Expr.add(Expr.mul(Expr.flatten(z.slice([1, 0, ii], [2, N, ii+1])), gamma), Expr.sub(Expr.flatten(xs), Expr.mul(x_cov, Expr.constTerm(inv_prob))))),
+                                     Expr.flatten(x_max)),
+                            Domain.greaterThan(0))
+                        M.constraint(
+                            Expr.sub(Expr.flatten(Expr.add(Expr.mul(Expr.flatten(z.slice([2, 0, ii], [3, N, ii+1])), -gamma), Expr.add(Expr.flatten(ys), Expr.mul(y_cov, Expr.constTerm(inv_prob))))),
+                                     Expr.flatten(y_min)),
+                            Domain.lessThan(0))
+                        M.constraint(
+                            Expr.sub(Expr.flatten(Expr.add(Expr.mul(Expr.flatten(z.slice([3, 0, ii], [4, N, ii+1])), gamma), Expr.sub(Expr.flatten(ys), Expr.mul(y_cov, Expr.constTerm(inv_prob))))),
+                                     Expr.flatten(y_max)),
+                            Domain.greaterThan(0))
+
+                    else:
+                        M.constraint(
+                            Expr.sub(Expr.add(Expr.mul(Expr.flatten(z.slice([0, 0], [1, N])), -gamma), Expr.flatten(xs)),
+                                     x_min),
+                            Domain.lessThan(0))
+                        M.constraint(
+                            Expr.sub(Expr.add(Expr.mul(Expr.flatten(z.slice([1, 0], [2, N])), gamma), Expr.flatten(xs)), x_max),
+                            Domain.greaterThan(0))
+                        M.constraint(
+                            Expr.sub(Expr.add(Expr.mul(Expr.flatten(z.slice([2, 0], [3, N])), -gamma), Expr.flatten(ys)),
+                                     y_min),
+                            Domain.lessThan(0))
+                        M.constraint(
+                            Expr.sub(Expr.add(Expr.mul(Expr.flatten(z.slice([3, 0], [4, N])), gamma), Expr.flatten(ys)), y_max),
+                            Domain.greaterThan(0))
             else:
+                pass
                 # terminal covariance constraint
-                sigma_N_inv = Expr.constTerm(np.ones((n, n)) * .00001)
-                EN = scipy.sparse.csr_matrix(np.hstack((np.zeros((n, (N - 1) * n)), np.eye(n))))
-                BNbar = EN.dot(B.copy())
-                Z = Expr.add(Matrix.sparse(EN.dot(D)), Expr.mul(Expr.mul(Matrix.sparse(BNbar), K), Matrix.dense(D)))
-                X_sym = Expr.vstack(Expr.hstack(sigma_N_inv, Z),
-                                    Expr.hstack(Expr.transpose(Z), Expr.constTerm(np.eye(l * N))))
-                M.constraint(X_sym, Domain.inPSDCone())
+                # sigma_N_inv = Expr.constTerm(np.ones((n, n)) * 1)
+                # EN = scipy.sparse.csr_matrix(np.hstack((np.zeros((n, (N - 1) * n)), np.eye(n))))
+                # BNbar = EN.dot(B.copy())
+                # Z = Expr.add(Matrix.sparse(EN.dot(D)), Expr.mul(Expr.mul(Matrix.sparse(BNbar), K), Matrix.dense(D)))
+                # X_sym = Expr.vstack(Expr.hstack(sigma_N_inv, Z),
+                #                     Expr.hstack(Expr.transpose(Z), Expr.constTerm(np.eye(l * N))))
+                # M.constraint(X_sym, Domain.inPSDCone())
 
             # chance constraint
-            for ii in range(1):
+            beta = M.parameter()
+            for ii in range(chance_const_N):
                 alpha = np.zeros((n, 1))
                 alpha[6, 0] = 1
                 alpha_T = Matrix.sparse(alpha.T)
-                alpha = Matrix.sparse(alpha)
-                beta = 2
-                inv_prob = scipy.stats.norm.ppf(0.95)
                 e_k = np.eye(n)
                 E_k = Matrix.sparse(np.hstack((np.zeros((n, (ii) * n)), e_k, np.zeros((n, (N - ii - 1) * n)))))
                 mean_part = Expr.mul(alpha_T, Expr.mul(E_k, Expr.add(Expr.add(A_mu_0, Expr.mul(B, V)), d)))
-                # if not mean_only:
-                sigma_0_part = M.variable()
-                M.constraint(Expr.vstack(sigma_0_part, Expr.flatten(
-                    Expr.mul(alpha_T, Expr.mul(E_k, Expr.mul(Expr.add(I, Expr.mul(B, K)), A_sigma_0_half))))),
-                             Domain.inQCone())
-                D_part = M.variable()
-                M.constraint(Expr.vstack(D_part, Expr.flatten(
-                    Expr.mul(alpha_T, Expr.mul(E_k, Expr.mul(Expr.add(I, Expr.mul(B, K)), D)))).slice(0, (
-                            ii + 1) * l)), Domain.inQCone())
-                cov_part = M.variable()
-                M.constraint(Expr.vstack(cov_part, sigma_0_part, D_part), Domain.inQCone())
-                M.constraint(Expr.add(mean_part, Expr.mul(cov_part, inv_prob)), Domain.inRange(-beta, beta))
-                # M.constraint(Expr.add(mean_part, Expr.mul(cov_part, inv_prob)), Domain.greaterThan(-beta))
-                # else:
-                #     M.constraint(Expr.add(mean_part, cov_part * inv_prob), Domain.lessThan(beta))
-                # M.constraint(mean_part, Domain.lessThan(beta))
+                if not mean_only:
+                    sigma_0_part = M.variable()
+                    M.constraint(Expr.vstack(sigma_0_part, Expr.flatten(
+                        Expr.mul(alpha_T, Expr.mul(E_k, Expr.mul(Expr.add(I, Expr.mul(B, K)), A_sigma_0_half))))),
+                                 Domain.inQCone())
+                    D_part = M.variable()
+                    M.constraint(Expr.vstack(D_part, Expr.flatten(
+                        Expr.mul(alpha_T, Expr.mul(E_k, Expr.mul(Expr.add(I, Expr.mul(B, K)), D)))).slice(0, (
+                                ii + 1) * l)), Domain.inQCone())
+                    cov_part = M.variable()
+                    M.constraint(Expr.vstack(cov_part, sigma_0_part, D_part), Domain.inQCone())
+                    M.constraint(Expr.sub(Expr.add(mean_part, Expr.mul(cov_part, inv_prob)), beta),
+                                 Domain.lessThan(0))
+                    M.constraint(Expr.add(Expr.sub(mean_part, Expr.mul(cov_part, inv_prob)), beta),
+                                 Domain.greaterThan(0))
+                else:
+                    cov_part = covariance_chance_constraints.index([ii, 0])
+                    M.constraint(Expr.sub(Expr.add(mean_part, Expr.mul(cov_part, Expr.constTerm(inv_prob))), beta), Domain.lessThan(0))
+                    M.constraint(Expr.add(Expr.sub(mean_part, Expr.mul(cov_part, Expr.constTerm(inv_prob))), beta),
+                                 Domain.greaterThan(0))
 
             # M.setLogHandler(sys.stdout)
 
@@ -233,15 +303,21 @@ class CSSolver:
             self.d_T_Q_B = d_T_Q_B
             self.mu_N = mu_N
             self.beta = beta
+            if mean_only:
+                self.covariance_chance_constraints = covariance_chance_constraints
             self.mean_only = mean_only
             self.k_form = k_form
+            self.obstacles = obstacles[0]
 
         finally:
             pass
             # M.dispose()
 
-    def populate_params(self, A, B, d, D, mu_0, sigma_0, sigma_N_inv, Q_bar, R_bar, u_0, x_target, mu_N, track_width, K=None):
-
+    def populate_params(self, A, B, d, D, mu_0, sigma_0, sigma_N_inv, Q_bar, R_bar, u_0, x_target, mu_N, track_width, K=None, obs=None):
+        n = self.n
+        m = self.m
+        l = self.l
+        N = self.N
         # A = np.tile(np.eye(n), (N, 1))
         # B = np.kron(np.eye(N), np.random.randn(n, m))
         # D = np.kron(np.eye(N), np.random.randn(n, l))
@@ -294,6 +370,18 @@ class CSSolver:
         # self.M.writeTask('dump.opf')
         if self.mean_only:
             self.K.setValue(K)
+            I_BK = np.eye(n * N) + np.dot(B, K)
+            D_part = np.dot(I_BK, D)
+            sigma0_part = np.dot(I_BK, np.dot(A, np.sqrt(sigma_0)))
+            D_part_Ek = D_part.reshape((N, n, N*l))
+            sigma0_part_Ek = sigma0_part.reshape((N, n, n))
+            D_part_Ek_alpha = D_part_Ek[:, 6:, :]
+            sigma0_part_Ek_alpha = sigma0_part_Ek[:, 6:, :]
+            D_part_norm = np.linalg.norm(D_part_Ek_alpha, axis=2)
+            sigma0_part_norm = np.linalg.norm(sigma0_part_Ek_alpha, axis=2)
+            self.covariance_chance_constraints.setValue(D_part_norm + sigma0_part_norm)
+        if self.obstacles:
+            self.obs.setValue(obs.flatten())
 
     def solve(self):
         # print(self.u_0.getValue())
@@ -323,67 +411,44 @@ class CSSolver:
         print((time.time() - t0) / 20)
 
 
-def nearest_spd_cholesky(A):
-    # print(np.linalg.eigvals(A))
-    B = (A + A.T)/2
-    U, Sigma, V = np.linalg.svd(B)
-    H = np.dot(np.dot(V.T, np.diag(Sigma)), V)
-    Ahat = (B+H)/2
-    Ahat = (Ahat + Ahat.T)/2
-    p = 1
-    k = 0
-    spacing = np.spacing(np.linalg.norm(A))
-    I = np.eye(A.shape[0])
-    while p != 0:
-        k += 1
-        try:
-            R = np.linalg.cholesky(Ahat)
-            p = 0
-        except np.linalg.LinAlgError:
-            eig = np.linalg.eigvals(Ahat)
-            # print(eig)
-            mineig = np.min(np.real(eig))
-            print(mineig)
-            Ahat = Ahat + I * (-mineig * k**2 + spacing)
-    print(np.linalg.norm(Ahat - A))
-    R_old = R.copy()
-    R[np.abs(R) < 1e-5] = 1e-5
-    np.tril(R)
-    print(np.linalg.norm(R - R_old))
-    return R
-
-
 if __name__ == '__main__':
     import cs_model
+    import matplotlib.pyplot as plt
     n = 8
     m = 2
     l = 8
-    N = 10
+    N = 50
     v_range = np.array([[-1, 1], [-1, 1]])
     slew_rate = np.array([[-0.1, 0.1], [-0.1, 0.1]])
-    solver = CSSolver(n, m, l, N, v_range, slew_rate, True)
+    obs = np.array([[[1.5, 16], [2, 17]], [[0.5, 29], [2, 31]]])
+    solver = CSSolver(n, m, l, N, v_range, slew_rate, (True, obs), mean_only=True, k_form=1)
     try:
-        state = np.array([5, 0, 0, 50, 50, 0, 0, 0]).reshape((-1, 1))
-        control = np.array([0, 0.3]).reshape((-1, 1))
+        state = np.array([5., 0., 0., 50., 50., 0., 0., 0.]).reshape((-1, 1))
+        control = np.array([0., 0.3]).reshape((-1, 1))
         model = cs_model.Model(N)
         A, B, d = model.linearize_dynamics(np.tile(state, (1, N)), np.tile(control, (1, N)))
-        D = np.zeros((n, l))
-        AA, BB, dd, DD = model.form_long_matrices_LTV(A, B, d, D)
-        Q = np.kron(np.eye(N), np.eye(n))
-        R = np.kron(np.eye(N), np.eye(m))
-        x_target = np.array([6, 0, 0, 60, 60, 0, 0, 0]).reshape((-1, 1))
-        mu_N = np.array([5, 0, 0, 50, 50, 0, 0, 0]).reshape((-1, 1))
+        D = 0.001 * np.ones((n, l, N))
+        AA, BB, dd, DD = model.form_long_matrices_LTV(A.reshape((n, n, N), order='F'), B.reshape((n, m, N), order='F'), d.reshape((n, 1, N), order='F'), D)
+        Q = np.kron(np.eye(N), np.diag([3., 0.1, 0.1, 0., 0., 10., 10., 0.]))
+        R = np.kron(np.eye(N), 0.1*np.eye(m))
+        x_target = np.tile(np.array([6., 0., 0., 60., 60., 0., 2.0, 0.]).reshape((-1, 1)), (N, 1))
+        mu_N = np.array([5., 1., 1., 50., 50., 1., 1., 100.]).reshape((-1, 1))
 
-        solver.populate_params(AA, BB, dd, DD, state, np.zeros((n, n)), np.ones((n, n)), Q, R, control, x_target, mu_N, 4)
+        solver.populate_params(AA, BB, dd, DD, state, np.zeros((n, n)), np.ones((n, n)), Q, R, control, x_target, mu_N, 4, K=np.zeros((m*N, n*N)))
         # solver.M.setSolverParam("numThreads", 8)
         # solver.M.setSolverParam("intpntCoTolPfeas", 1e-3)
         # solver.M.setSolverParam("intpntCoTolDfeas", 1e-3)
         # solver.M.setSolverParam("intpntCoTolRelGap", 1e-3)
         # solver.M.setSolverParam("intpntCoTolInfeas", 1e-3)
+        solver.M.setSolverParam("mioTolAbsGap", 10000)
         V, K = solver.solve()
         print(V.reshape((m, N)), K.reshape((m*N, n*N)))
-        X_bar = np.dot(AA, state) + np.dot(BB, V) + d
-        print(X_bar.reshape((n, N)))
+        X_bar = np.dot(AA, state) + np.dot(BB, V.reshape((-1, 1))) + dd
+        X_bar = X_bar.reshape((n, N), order='F')
+        print(X_bar)
+        plt.plot(X_bar[6, :], X_bar[7, :])
+        plt.xlim(-3, 3)
+        plt.show()
         # solver.time()
     finally:
         solver.M.dispose()

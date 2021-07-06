@@ -20,12 +20,16 @@ class Model:
                 [-0.24, -0.66, -0.6613, 51.8453, 7.2218, 0]
             ]
         num_segments = 5
+        while (s > map_params[num_segments - 1][3] + map_params[num_segments - 1][4]).any():
+            s[s > map_params[num_segments - 1][3] + map_params[num_segments - 1][4]] -= map_params[num_segments - 1][
+                                                                                            3] + \
+                                                                                        map_params[num_segments - 1][4]
         for ii in range(num_segments):
             truths = np.where(np.logical_and(map_params[ii][3] <= s, s <= map_params[ii][3] + map_params[ii][4]))
             rho[truths] = map_params[ii][5]
         return rho
 
-    def update_dynamics(self, state, input, dt, nn=None):
+    def update_dynamics(self, state, input, dt, nn=None, cartesian=np.array([])):
         state = state.T
         input = input.T
         m_Vehicle_m = 21.7562#1270
@@ -143,6 +147,11 @@ class Model:
             next_state[:, 6] = X + deltaT * (vx * sin(psi) + vy * cos(psi))
             next_state[:, 7] = Y + deltaT * (vx * cos(psi) - vy * sin(psi)) / (1 - rho * X)
 
+            if len(cartesian) > 0:
+                cartesian[0, :] += deltaT * wz
+                cartesian[1, :] += deltaT * (cos(cartesian[0, :]) * vx - sin(cartesian[0, :]) * vy)
+                cartesian[2, :] += deltaT * (sin(cartesian[0, :]) * vx + cos(cartesian[0, :]) * vy)
+
             t += deltaT
             vx = next_state[:, 0]
             vy = next_state[:, 1]
@@ -155,13 +164,16 @@ class Model:
 
         # print(t1-t0, t2-t1, t3-t2, t4-t3, t5-t4)
 
-        return next_state.T
+        if len(cartesian) > 0:
+            return next_state.T, cartesian
+        else:
+            return next_state.T
 
-    def linearize_dynamics(self, states, controls):
+    def linearize_dynamics(self, states, controls, dt=0.1):
         nx = 8
         nu = 2
         nN = self.N
-        dt = 0.1
+        # dt = 0.1
 
         delta_x = np.array([0.01, 0.001, 0.01, 0.1, 0.1, 0.05, 0.1, 0.2])
         delta_u = np.array([0.01, 0.01])
