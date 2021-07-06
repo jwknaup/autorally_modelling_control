@@ -9,3 +9,5 @@ images/
 road_unsupervised/
 __pycache__/
 !mppi_data/*
+*.gif
+*.avi
