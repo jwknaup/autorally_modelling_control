@@ -655,7 +655,7 @@ class RetraceDrive:
         plt.tight_layout()
         # plt.show()
         image = np.frombuffer(fig.canvas.tostring_rgb(), dtype='uint8')
-        image = image.reshape(fig.canvas.get_width_height()[::-1] + (3,))
+        # image = image.reshape(fig.canvas.get_width_height()[::-1] + (3,))
 
         return image
 
@@ -689,7 +689,7 @@ class RetraceDrive:
         plt.tight_layout()
         # plt.show()
         image = np.frombuffer(fig.canvas.tostring_rgb(), dtype='uint8')
-        image = image.reshape(fig.canvas.get_width_height()[::-1] + (3,))
+        # image = image.reshape(fig.canvas.get_width_height()[::-1] + (3,))
 
         return image
 
