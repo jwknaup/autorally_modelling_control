@@ -427,7 +427,7 @@ def train_model():
     plt.tight_layout()
     fig.canvas.draw()
     plt.pause(0.01)
-    plt.savefig('/home/user/Pictures/robo8750/GP Training 95CI_lowres.png', dpi=300)
+    plt.savefig('GP Training 95CI_lowres.png', dpi=300)
     # plt.show()
 
     return gp
@@ -518,7 +518,7 @@ def run_model(gp):
     plt.tight_layout()
     fig.canvas.draw()
     plt.pause(0.01)
-    plt.savefig('/home/user/Pictures/robo8750/GP Validation 95CI_lowres.png', dpi=300)
+    plt.savefig('GP Validation 95CI_lowres.png', dpi=300)
     plt.show()
 
 
@@ -760,7 +760,7 @@ class RetraceDrive:
             image = self.update_plots(self.time[:start_index + 1 + self.N], self.states[:, :start_index + 1], self.states[:, start_index:start_index + 1 + self.N], nominal_states, corrected_states, sigmas=uncertainties)
             # plt.suptitle('lap ' + str(ii+1))
             plt.pause(5.0)
-            plt.savefig('/home/user/Pictures/robo8750/lap {} {}_lowres.png'.format(ii+1, self.plot_type), dpi=300)
+            plt.savefig('lap {} {}_lowres.png'.format(ii+1, self.plot_type), dpi=300)
         #     imgs.append(image)
         # imageio.mimsave('drive_retrace.gif', imgs, fps=int(1/self.time_step))
         # plt.plot(self.time, losses[0, :])
@@ -840,7 +840,7 @@ class RetraceDrive:
             # plt.suptitle('lap ' + str(ii+1))
             print('lap: ', ii, 'min speed: ', np.min(optimal_trajectory[0, :]), 'ave speed: ', np.mean(optimal_trajectory[0, :]))
             plt.pause(5.0)
-            plt.savefig('/home/user/Pictures/robo8750/lap {} control design_lowres.png'.format(ii+1), dpi=300)
+            plt.savefig('lap {} control design_lowres.png'.format(ii+1), dpi=300)
         #     imgs.append(image)
         # imageio.mimsave('drive_retrace.gif', imgs, fps=int(1/self.time_step))
         # plt.plot(self.time, losses[0, :])
