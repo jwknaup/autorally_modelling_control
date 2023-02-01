@@ -77,10 +77,10 @@ class MapCA:
         while head_dist > np.pi:
             # print(psi, np.arctan2(self.dif_vecs[1, mini], self.dif_vecs[0, mini]))
             head_dist -= 2*np.pi
-            print(norm_dist, s_dist, head_dist * 180 / np.pi)
+            # print(norm_dist, s_dist, head_dist * 180 / np.pi)
         while head_dist < -np.pi:
             head_dist += 2*np.pi
-            print(norm_dist, s_dist, head_dist * 180 / np.pi)
+            # print(norm_dist, s_dist, head_dist * 180 / np.pi)
         # if printi:
         #     print(norm_dist, s_dist, head_dist*180/np.pi)
         #     printi=0
@@ -336,14 +336,14 @@ def train_model():
     states = states[:, N0:Nf - 1]
     controls = controls[:, N0:Nf - 1]
     time = np.arange(0, states.shape[1]) * time_step
-    print(states.shape)
+    # print(states.shape)
 
     parametric_model = Model(1)
 
     num_steps = 1
     f_0 = parametric_model.update_dynamics(states, controls, time_step*num_steps)
     g_hat = states[:, num_steps*1:] - f_0[:, :-1*num_steps]
-    print(np.mean(np.abs(g_hat), axis=1))
+    # print(np.mean(np.abs(g_hat), axis=1))
     D = np.vstack((states[:-3, :-1*num_steps], controls[:, :-1*num_steps]))
 
     kernel = 1 * gaussian_process.kernels.RBF(length_scale=1.16, length_scale_bounds=(1e-5, 1e5)) + gaussian_process.kernels.WhiteKernel(noise_level=0.248)
@@ -355,10 +355,10 @@ def train_model():
     # gp.optimizer = None
     gp.fit(D[:, :].T, g_hat[:-3, :].T)
     t1 = tt.time()
-    print(t1 - t0)
+    # print(t1 - t0)
     params = gp.get_params()
     kernel = gp.kernel_
-    print(kernel)
+    # print(kernel)
     # gp2 = gaussian_process.GaussianProcessRegressor(kernel=kernel, optimizer=None, normalize_y=True)
     # # gp2 = gp2.set_params(params=params)
     # t0 = tt.time()
@@ -398,7 +398,7 @@ def train_model():
     g_0_mu, g_0_sigma = gp.predict(D.T, return_std=True)
     g_0_mu = g_0_mu.T
     g_0_sigma = g_0_sigma.T
-    print(np.min(g_0_sigma, axis=1), np.mean(g_0_sigma, axis=1), np.max(g_0_sigma, axis=1))
+    # print(np.min(g_0_sigma, axis=1), np.mean(g_0_sigma, axis=1), np.max(g_0_sigma, axis=1))
 
     plt.figure()
     for ii in range(states.shape[0] - 3):
@@ -447,14 +447,14 @@ def run_model(gp):
     states = states[:, N0:Nf - 1]
     controls = controls[:, N0:Nf - 1]
     time = np.arange(0, states.shape[1]) * time_step
-    print(states.shape)
+    # print(states.shape)
 
     parametric_model = Model(1)
 
     num_steps = 1
     f_0 = parametric_model.update_dynamics(states, controls, time_step * num_steps)
     g_hat = states[:, num_steps * 1:] - f_0[:, :-1 * num_steps]
-    print(np.mean(np.abs(g_hat), axis=1))
+    # print(np.mean(np.abs(g_hat), axis=1))
     D = np.vstack((states[:-3, :-1 * num_steps], controls[:, :-1 * num_steps]))
 
     predicted_states = np.zeros((8, horizon))
@@ -487,7 +487,7 @@ def run_model(gp):
     g_0_mu, g_0_sigma =  gp.predict(D.T, return_std=True)
     g_0_mu = g_0_mu.T
     g_0_sigma = g_0_sigma.T
-    print(np.min(g_0_sigma, axis=1), np.mean(g_0_sigma, axis=1), np.max(g_0_sigma, axis=1))
+    # print(np.min(g_0_sigma, axis=1), np.mean(g_0_sigma, axis=1), np.max(g_0_sigma, axis=1))
 
     plt.figure()
     for ii in range(states.shape[0] - 3):
@@ -538,7 +538,7 @@ class RetraceDrive:
         self.states = states[:, N0:Nf - 1]
         self.controls = controls[:, N0:Nf - 1]
         self.time = np.arange(0, self.states.shape[1]) * self.time_step
-        print('loaded states of shape: ', self.states.shape)
+        # print('loaded states of shape: ', self.states.shape)
 
         self.parametric_model = Model(self.N)
         kernel = 1 * gaussian_process.kernels.RBF(length_scale=1.16) + gaussian_process.kernels.WhiteKernel(noise_level=0.248)
@@ -702,7 +702,7 @@ class RetraceDrive:
         # fig = plt.gcf()
         # fig.canvas.manager.full_screen_toggle()
         for ii in range(self.states.shape[1] - self.N - 2):
-            print(ii/(self.states.shape[1] - self.N - 2))
+            # print(ii/(self.states.shape[1] - self.N - 2))
             t0 = tt.time()
             state = self.states[:, ii:ii + 1]
             controls = self.controls[:, ii:ii + 1 + self.N]
@@ -718,11 +718,11 @@ class RetraceDrive:
             else:
                 self.gp.optimizer = None
             self.update_gp(self.states[:, :ii + 2], self.controls[:, :ii + 1], past_nominal_states[:, :ii + 2])
-            print(self.gp.kernel_)
+            # print(self.gp.kernel_)
             if (ii + 1) % 20 == 0:
                 kernel = self.gp.kernel_
                 self.gp.kernel = kernel
-            print(tt.time() - t0)
+            # print(tt.time() - t0)
         #     image = self.update_plots(self.time[:ii + 1 + self.N], self.states[:, :ii + 1], self.states[:, ii:ii + 1 + self.N], nominal_states, corrected_states, sigmas=uncertainties)
         #     imgs.append(image)
         # imageio.mimsave('drive_retrace.gif', imgs, fps=int(1/self.time_step))
@@ -752,7 +752,7 @@ class RetraceDrive:
             # losses[1, ii] = log_likelihood
             self.gp.optimizer = 'fmin_l_bfgs_b'
             self.update_gp(self.states[:, :start_index + 2], self.controls[:, :start_index + 1], past_nominal_states)
-            print(self.gp.kernel_)
+            # print(self.gp.kernel_)
             # if (ii + 1) % 20 == 0:
             #     kernel = self.gp.kernel_
             #     self.gp.kernel = kernel
@@ -831,14 +831,14 @@ class RetraceDrive:
             optimal_trajectory, opt_traj_sigma = self.rollout_augmented(corrected_states[:, :1], us)
             self.gp.optimizer = 'fmin_l_bfgs_b'
             self.update_gp(self.states[:, :start_index + 2], self.controls[:, :start_index + 1], past_nominal_states)
-            print(self.gp.kernel_)
+            # print(self.gp.kernel_)
             # if (ii + 1) % 20 == 0:
             #     kernel = self.gp.kernel_
             #     self.gp.kernel = kernel
             # print(tt.time() - t0)
             image = self.update_map(self.time[:start_index + 1 + self.N], self.states[:, :start_index + 1], optimal_trajectory, opt_traj_sigma)
             # plt.suptitle('lap ' + str(ii+1))
-            print('lap: ', ii, 'min speed: ', np.min(optimal_trajectory[0, :]), 'ave speed: ', np.mean(optimal_trajectory[0, :]))
+            # print('lap: ', ii, 'min speed: ', np.min(optimal_trajectory[0, :]), 'ave speed: ', np.mean(optimal_trajectory[0, :]))
             plt.pause(5.0)
             plt.savefig('lap {} control design_lowres.png'.format(ii+1), dpi=300)
         #     imgs.append(image)
